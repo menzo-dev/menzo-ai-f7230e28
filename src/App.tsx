@@ -10,6 +10,7 @@ import Chat from "./pages/Chat";
 import Profile from "./pages/Profile";
 import Admin from "./pages/Admin";
 import About from "./pages/About";
+import Exams from "./pages/Exams";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -29,6 +30,7 @@ const App = () => (
             <Route path="/chat" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
             <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
             <Route path="/admin" element={<ProtectedRoute><Admin /></ProtectedRoute>} />
+            <Route path="/exams" element={<ProtectedRoute><Exams /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

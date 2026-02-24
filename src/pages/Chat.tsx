@@ -6,7 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import ReactMarkdown from "react-markdown";
 import {
   Send, Plus, Bot, User, LogOut, History, Trash2, Image, Search,
-  Settings, Menu, X, MessageSquare, Sparkles, ChevronDown
+  Settings, Menu, X, MessageSquare, Sparkles, ChevronDown, GraduationCap
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -22,11 +22,15 @@ interface Conversation {
 }
 
 const MODELS = [
-  { id: "google/gemini-3-flash-preview", label: "Gemini Flash ⚡", desc: "سريع ومتوازن" },
-  { id: "google/gemini-2.5-pro", label: "Gemini Pro 🧠", desc: "أقوى نموذج" },
-  { id: "openai/gpt-5", label: "GPT-5 🌟", desc: "متعدد المهام" },
+  { id: "google/gemini-3-flash-preview", label: "Gemini 3 Flash ⚡", desc: "سريع ومتوازن — أحدث إصدار" },
+  { id: "google/gemini-3-pro-preview", label: "Gemini 3 Pro 🧠", desc: "أقوى نموذج من Google" },
+  { id: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro 💎", desc: "تفكير عميق ومعالجة معقدة" },
+  { id: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash", desc: "متوازن سرعة وجودة" },
+  { id: "google/gemini-2.5-flash-lite", label: "Gemini 2.5 Flash Lite 💨", desc: "الأسرع والأرخص" },
+  { id: "openai/gpt-5", label: "GPT-5 🌟", desc: "أقوى نموذج من OpenAI" },
   { id: "openai/gpt-5-mini", label: "GPT-5 Mini", desc: "سريع واقتصادي" },
-  { id: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash", desc: "متوازن" },
+  { id: "openai/gpt-5-nano", label: "GPT-5 Nano 🚀", desc: "خفيف وسريع جداً" },
+  { id: "openai/gpt-5.2", label: "GPT-5.2 🔥", desc: "أحدث إصدار مع تفكير محسّن" },
 ];
 
 const Chat = () => {
@@ -286,6 +290,13 @@ const Chat = () => {
 
           {/* User section */}
           <div className="border-t border-border pt-4 space-y-2">
+            <button
+              onClick={() => navigate("/exams")}
+              className="flex items-center gap-3 w-full rounded-lg px-3 py-2 hover:bg-secondary transition-colors text-foreground"
+            >
+              <GraduationCap className="h-5 w-5 text-accent" />
+              <span className="text-sm">الاختبارات</span>
+            </button>
             <button
               onClick={() => navigate("/profile")}
               className="flex items-center gap-3 w-full rounded-lg px-3 py-2 hover:bg-secondary transition-colors"
