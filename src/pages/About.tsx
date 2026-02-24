@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Bot, Code, Heart, ArrowLeft } from "lucide-react";
+import { Bot, Code, Heart, ArrowLeft, Github, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const About = () => {
@@ -46,6 +46,13 @@ const About = () => {
                 <Code className="h-5 w-5 text-primary" />
                 عن المطور
               </h2>
+              <div className="text-center my-4">
+                <div className="inline-flex h-20 w-20 items-center justify-center rounded-full bg-primary/20 text-primary text-2xl font-bold mb-3">
+                  م.و
+                </div>
+                <h3 className="text-lg font-bold text-foreground">محمد وليد المنزلاوي</h3>
+                <p className="text-sm text-muted-foreground">مطور ومؤسس MENZO-AI</p>
+              </div>
               <p className="text-muted-foreground">
                 تم تطوير هذا المشروع بشغف وحب لخدمة طلاب العلم في الأزهر الشريف.
                 نسعى دائماً لتحسين المنصة وإضافة مميزات جديدة لتوفير أفضل تجربة تعليمية ممكنة.
@@ -58,6 +65,21 @@ const About = () => {
                 {["الفقه الإسلامي", "الحديث الشريف", "التفسير", "الأدب العربي", "النحو والصرف", "البلاغة", "الرياضيات", "العلوم"].map((subject) => (
                   <div key={subject} className="rounded-lg bg-primary/10 px-3 py-2 text-sm text-center text-primary">
                     {subject}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="glass rounded-xl p-6">
+              <h2 className="text-xl font-bold mb-3">النماذج المدعومة</h2>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  "GPT-5 🌟", "GPT-5 Mini ⚡", "GPT-5 Nano 🚀",
+                  "Gemini 3 Pro 🧠", "Gemini 3 Flash ⚡", "Gemini 2.5 Pro 💎",
+                  "Gemini 2.5 Flash 🔥", "Gemini 2.5 Flash Lite 💨",
+                ].map((model) => (
+                  <div key={model} className="rounded-lg bg-accent/10 px-3 py-2 text-sm text-center text-accent">
+                    {model}
                   </div>
                 ))}
               </div>
