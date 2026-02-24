@@ -9,7 +9,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useEffect } from "react";
 
 const Auth = () => {
-  const [isLogin, setIsLogin] = useState(true);
+  const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -27,7 +27,14 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      if (isLogin) {
+      if (mode === "forgot") {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (error) throw error;
+        toast({ title: "تم الإرسال", description: "تحقق من بريدك الإلكتروني لإعادة تعيين كلمة المرور" });
+        setMode("login");
+      } else if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast({ title: "مرحباً بك!", description: "تم تسجيل الدخول بنجاح" });
@@ -79,15 +86,15 @@ const Auth = () => {
               <Bot className="h-8 w-8 text-primary-foreground" />
             </div>
             <h1 className="text-2xl font-bold text-foreground">
-              {isLogin ? "تسجيل الدخول" : "إنشاء حساب جديد"}
+              {mode === "login" ? "تسجيل الدخول" : mode === "signup" ? "إنشاء حساب جديد" : "نسيت كلمة المرور"}
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              {isLogin ? "مرحباً بعودتك!" : "انضم إلى MENZO-AI الآن"}
+              {mode === "login" ? "مرحباً بعودتك!" : mode === "signup" ? "انضم إلى MENZO-AI الآن" : "أدخل بريدك لإعادة تعيين كلمة المرور"}
             </p>
           </div>
 
           <form onSubmit={handleAuth} className="space-y-4">
-            {!isLogin && (
+            {mode === "signup" && (
               <div className="relative">
                 <User className="absolute right-3 top-3 h-5 w-5 text-muted-foreground" />
                 <Input
@@ -110,18 +117,20 @@ const Auth = () => {
                 required
               />
             </div>
-            <div className="relative">
-              <Lock className="absolute right-3 top-3 h-5 w-5 text-muted-foreground" />
-              <Input
-                type="password"
-                placeholder="كلمة المرور"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="pr-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground"
-                required
-                minLength={6}
-              />
-            </div>
+            {mode !== "forgot" && (
+              <div className="relative">
+                <Lock className="absolute right-3 top-3 h-5 w-5 text-muted-foreground" />
+                <Input
+                  type="password"
+                  placeholder="كلمة المرور"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pr-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground"
+                  required
+                  minLength={6}
+                />
+              </div>
+            )}
             <Button
               type="submit"
               disabled={loading}
@@ -129,16 +138,21 @@ const Auth = () => {
             >
               {loading ? (
                 <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-              ) : isLogin ? "دخول" : "إنشاء حساب"}
+              ) : mode === "login" ? "دخول" : mode === "signup" ? "إنشاء حساب" : "إرسال رابط إعادة التعيين"}
             </Button>
           </form>
 
-          <div className="mt-6 text-center">
+          <div className="mt-6 text-center space-y-2">
+            {mode === "login" && (
+              <button onClick={() => setMode("forgot")} className="text-sm text-muted-foreground hover:text-primary block w-full">
+                نسيت كلمة المرور؟
+              </button>
+            )}
             <button
-              onClick={() => setIsLogin(!isLogin)}
+              onClick={() => setMode(mode === "login" ? "signup" : "login")}
               className="text-sm text-primary hover:underline"
             >
-              {isLogin ? "ليس لديك حساب؟ أنشئ حساباً" : "لديك حساب بالفعل؟ سجل دخول"}
+              {mode === "login" ? "ليس لديك حساب؟ أنشئ حساباً" : "لديك حساب بالفعل؟ سجل دخول"}
             </button>
           </div>
         </div>
