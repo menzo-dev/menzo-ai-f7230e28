@@ -7,7 +7,8 @@ import ReactMarkdown from "react-markdown";
 import {
   Send, Plus, Bot, User, LogOut, Trash2, Image, Search,
   Menu, X, MessageSquare, Sparkles, ChevronDown, GraduationCap,
-  Mic, MicOff, Paperclip, Settings, UserCircle
+  Mic, MicOff, Paperclip, Edit3, Copy, Check, RotateCcw,
+  Bell, Users as UsersIcon, Shield
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -39,26 +40,46 @@ const MODEL_CATEGORIES = [
     ],
   },
   {
-    label: "🆓 نماذج مجانية",
+    label: "🆓 OpenRouter مجاني",
     models: [
-      { id: "deepseek/deepseek-chat", label: "DeepSeek Chat 🐉", desc: "نموذج صيني قوي ومجاني" },
-      { id: "deepseek/deepseek-reasoner", label: "DeepSeek R1 🧠", desc: "تفكير عميق" },
       { id: "openrouter/qwen/qwen3-235b-a22b:free", label: "Qwen 3 235B 🏮", desc: "أقوى نموذج مجاني" },
       { id: "openrouter/qwen/qwen3-30b-a3b:free", label: "Qwen 3 30B", desc: "سريع ومجاني" },
+      { id: "openrouter/qwen/qwen3-14b:free", label: "Qwen 3 14B", desc: "خفيف ومجاني" },
       { id: "openrouter/meta-llama/llama-4-maverick:free", label: "Llama 4 Maverick 🦙", desc: "من Meta مجاناً" },
       { id: "openrouter/meta-llama/llama-4-scout:free", label: "Llama 4 Scout", desc: "سريع من Meta" },
-      { id: "openrouter/deepseek/deepseek-r1:free", label: "DeepSeek R1 (OR)", desc: "تفكير عبر OpenRouter" },
+      { id: "openrouter/deepseek/deepseek-r1:free", label: "DeepSeek R1 🐉", desc: "تفكير عميق مجاني" },
+      { id: "openrouter/deepseek/deepseek-chat-v3-0324:free", label: "DeepSeek V3 Chat", desc: "محادثة مجانية" },
       { id: "openrouter/google/gemma-3-27b-it:free", label: "Gemma 3 27B", desc: "من Google مجاناً" },
+      { id: "openrouter/google/gemma-3-12b-it:free", label: "Gemma 3 12B", desc: "خفيف من Google" },
       { id: "openrouter/mistralai/mistral-small-3.1-24b-instruct:free", label: "Mistral Small 3.1", desc: "فرنسي سريع" },
+      { id: "openrouter/microsoft/phi-4-reasoning:free", label: "Phi-4 Reasoning 🧮", desc: "تفكير من Microsoft" },
+      { id: "openrouter/microsoft/mai-ds-r1:free", label: "MAI-DS R1", desc: "رياضيات من Microsoft" },
+      { id: "openrouter/nvidia/llama-3.1-nemotron-ultra-253b-v1:free", label: "Nemotron Ultra 253B", desc: "عملاق من NVIDIA" },
+      { id: "openrouter/moonshotai/kimi-vl-a3b-thinking:free", label: "Kimi VL 🌙", desc: "رؤية مجانية" },
     ],
   },
   {
-    label: "🤖 نماذج متقدمة",
+    label: "🐉 DeepSeek",
+    models: [
+      { id: "deepseek/deepseek-chat", label: "DeepSeek Chat 🐉", desc: "محادثة قوية" },
+      { id: "deepseek/deepseek-reasoner", label: "DeepSeek R1 🧠", desc: "تفكير عميق" },
+    ],
+  },
+  {
+    label: "🤖 Grok & Claude",
     models: [
       { id: "xai/grok-3", label: "Grok 3 ⚡", desc: "من xAI / إيلون ماسك" },
       { id: "xai/grok-3-mini", label: "Grok 3 Mini", desc: "خفيف وسريع" },
       { id: "anthropic/claude-sonnet-4-20250514", label: "Claude Sonnet 4 🎭", desc: "من Anthropic" },
       { id: "anthropic/claude-3-5-haiku-20241022", label: "Claude 3.5 Haiku", desc: "سريع وذكي" },
+    ],
+  },
+  {
+    label: "🤗 HuggingFace",
+    models: [
+      { id: "huggingface/mistralai/Mistral-7B-Instruct-v0.3", label: "Mistral 7B 🇫🇷", desc: "مجاني من HuggingFace" },
+      { id: "huggingface/microsoft/Phi-3-mini-4k-instruct", label: "Phi-3 Mini 🔬", desc: "خفيف من Microsoft" },
+      { id: "huggingface/google/gemma-2-9b-it", label: "Gemma 2 9B", desc: "من Google" },
     ],
   },
 ];
@@ -75,6 +96,15 @@ const SEARCH_ENGINES = [
   { id: "ai", label: "بحث ذكي 🤖", desc: "AI Search" },
   { id: "exa", label: "Exa 🔍", desc: "بحث عصبي متقدم" },
   { id: "tavily", label: "Tavily 🌐", desc: "بحث ويب شامل" },
+];
+
+const SUGGESTIONS = [
+  "اشرح لي باب الطهارة في الفقه الشافعي",
+  "ما إعراب: إن الله مع الصابرين؟",
+  "اشرح قوانين نيوتن بالتفصيل",
+  "ما الفرق بين الاستعارة والكناية في البلاغة؟",
+  "اشرح درس المعادلات التربيعية",
+  "ما أركان الإيمان مع الشرح؟",
 ];
 
 const Chat = () => {
@@ -97,9 +127,14 @@ const Chat = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedImageModel, setSelectedImageModel] = useState("gemini");
   const [selectedSearchEngine, setSelectedSearchEngine] = useState("ai");
+  const [editingMsgIdx, setEditingMsgIdx] = useState<number | null>(null);
+  const [editText, setEditText] = useState("");
+  const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
+  const [editingConvId, setEditingConvId] = useState<string | null>(null);
+  const [editingConvTitle, setEditingConvTitle] = useState("");
   const messagesEnd = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recognitionRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { loadConversations(); }, []);
@@ -113,10 +148,11 @@ const Chat = () => {
   const newChat = () => { setMessages([]); setCurrentConvId(null); setInput(""); };
 
   const loadConversation = async (id: string) => {
-    const { data } = await supabase.from("conversations").select("messages").eq("id", id).single();
+    const { data } = await supabase.from("conversations").select("messages, model").eq("id", id).single();
     if (data?.messages) {
       setMessages(data.messages as unknown as Message[]);
       setCurrentConvId(id);
+      if (data.model) setSelectedModel(data.model);
       setSidebarOpen(false);
     }
   };
@@ -127,20 +163,28 @@ const Chat = () => {
     loadConversations();
   };
 
+  const renameConversation = async (id: string, newTitle: string) => {
+    if (!newTitle.trim()) return;
+    await supabase.from("conversations").update({ title: newTitle.trim() }).eq("id", id);
+    setEditingConvId(null);
+    loadConversations();
+  };
+
   const saveConversation = async (msgs: Message[]) => {
     const title = msgs[0]?.content?.slice(0, 50) || "محادثة جديدة";
     if (currentConvId) {
-      await supabase.from("conversations").update({ messages: msgs as any, title, last_active: new Date().toISOString() }).eq("id", currentConvId);
+      await supabase.from("conversations").update({ messages: msgs as any, title, last_active: new Date().toISOString(), model: selectedModel }).eq("id", currentConvId);
     } else {
-      const { data } = await supabase.from("conversations").insert({ user_id: user!.id, messages: msgs as any, title, last_active: new Date().toISOString() }).select("id").single();
+      const { data } = await supabase.from("conversations").insert({ user_id: user!.id, messages: msgs as any, title, model: selectedModel, last_active: new Date().toISOString() }).select("id").single();
       if (data) setCurrentConvId(data.id);
     }
     loadConversations();
   };
 
-  const sendMessage = async () => {
-    if (!input.trim() || isLoading) return;
-    const userMsg: Message = { role: "user", content: input.trim() };
+  const sendMessage = async (overrideInput?: string) => {
+    const text = overrideInput || input.trim();
+    if (!text || isLoading) return;
+    const userMsg: Message = { role: "user", content: text };
     const newMsgs = [...messages, userMsg];
     setMessages(newMsgs);
     setInput("");
@@ -151,7 +195,12 @@ const Chat = () => {
       const resp = await fetch(CHAT_URL, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({ messages: newMsgs.map(m => ({ role: m.role, content: m.content })), model: selectedModel }),
+        body: JSON.stringify({
+          messages: newMsgs.map(m => ({ role: m.role, content: m.content })),
+          model: selectedModel,
+          userName: profile?.display_name,
+          userBio: (profile as any)?.bio,
+        }),
       });
 
       if (!resp.ok) {
@@ -205,6 +254,130 @@ const Chat = () => {
     }
   };
 
+  const regenerateResponse = async () => {
+    if (messages.length < 2) return;
+    // Remove last assistant message and re-send
+    const withoutLast = messages.slice(0, -1);
+    setMessages(withoutLast);
+    const lastUserMsg = withoutLast[withoutLast.length - 1];
+    if (lastUserMsg?.role === "user") {
+      setIsLoading(true);
+      try {
+        const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+        const resp = await fetch(CHAT_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+          body: JSON.stringify({
+            messages: withoutLast.map(m => ({ role: m.role, content: m.content })),
+            model: selectedModel,
+            userName: profile?.display_name,
+            userBio: (profile as any)?.bio,
+          }),
+        });
+        if (!resp.ok) throw new Error("فشل إعادة الإجابة");
+        const reader = resp.body!.getReader();
+        const decoder = new TextDecoder();
+        let textBuffer = "";
+        let assistantSoFar = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          textBuffer += decoder.decode(value, { stream: true });
+          let newlineIndex: number;
+          while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+            let line = textBuffer.slice(0, newlineIndex);
+            textBuffer = textBuffer.slice(newlineIndex + 1);
+            if (line.endsWith("\r")) line = line.slice(0, -1);
+            if (!line.startsWith("data: ")) continue;
+            const jsonStr = line.slice(6).trim();
+            if (jsonStr === "[DONE]") break;
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) {
+                assistantSoFar += content;
+                setMessages(prev => {
+                  const last = prev[prev.length - 1];
+                  if (last?.role === "assistant") return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
+                  return [...prev, { role: "assistant", content: assistantSoFar }];
+                });
+              }
+            } catch { break; }
+          }
+        }
+        const finalMsgs = [...withoutLast, { role: "assistant" as const, content: assistantSoFar }];
+        setMessages(finalMsgs);
+        await saveConversation(finalMsgs);
+      } catch (err: any) {
+        toast({ title: "خطأ", description: err.message, variant: "destructive" });
+      } finally { setIsLoading(false); }
+    }
+  };
+
+  const editMessage = (idx: number) => {
+    if (messages[idx].role !== "user") return;
+    setEditingMsgIdx(idx);
+    setEditText(messages[idx].content);
+  };
+
+  const submitEditMessage = async () => {
+    if (editingMsgIdx === null || !editText.trim()) return;
+    // Truncate messages to edited point, re-send
+    const truncated = messages.slice(0, editingMsgIdx);
+    truncated.push({ role: "user", content: editText.trim() });
+    setMessages(truncated);
+    setEditingMsgIdx(null);
+    setEditText("");
+    // Re-send from that point
+    setIsLoading(true);
+    try {
+      const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+      const resp = await fetch(CHAT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({
+          messages: truncated.map(m => ({ role: m.role, content: m.content })),
+          model: selectedModel,
+          userName: profile?.display_name,
+        }),
+      });
+      if (!resp.ok) throw new Error("فشل");
+      const reader = resp.body!.getReader();
+      const decoder = new TextDecoder();
+      let textBuffer = "";
+      let assistantSoFar = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        textBuffer += decoder.decode(value, { stream: true });
+        let ni: number;
+        while ((ni = textBuffer.indexOf("\n")) !== -1) {
+          let line = textBuffer.slice(0, ni);
+          textBuffer = textBuffer.slice(ni + 1);
+          if (line.endsWith("\r")) line = line.slice(0, -1);
+          if (!line.startsWith("data: ")) continue;
+          const js = line.slice(6).trim();
+          if (js === "[DONE]") break;
+          try {
+            const p = JSON.parse(js);
+            const c = p.choices?.[0]?.delta?.content;
+            if (c) { assistantSoFar += c; setMessages(prev => { const l = prev[prev.length - 1]; if (l?.role === "assistant") return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m); return [...prev, { role: "assistant", content: assistantSoFar }]; }); }
+          } catch { break; }
+        }
+      }
+      const final2 = [...truncated, { role: "assistant" as const, content: assistantSoFar }];
+      setMessages(final2);
+      await saveConversation(final2);
+    } catch (err: any) { toast({ title: "خطأ", description: err.message, variant: "destructive" }); }
+    finally { setIsLoading(false); }
+  };
+
+  const copyText = (text: string, idx: number) => {
+    navigator.clipboard.writeText(text);
+    setCopiedIdx(idx);
+    setTimeout(() => setCopiedIdx(null), 2000);
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
@@ -215,7 +388,6 @@ const Chat = () => {
     setShowImageGen(false);
     const userMsg: Message = { role: "user", content: `🎨 إنشاء صورة: ${prompt}` };
     setMessages((prev) => [...prev, userMsg]);
-
     try {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`, {
         method: "POST",
@@ -224,16 +396,13 @@ const Chat = () => {
       });
       const data = await resp.json();
       if (data.error) throw new Error(data.error);
-      const assistantMsg: Message = { role: "assistant", content: `تم إنشاء الصورة بنجاح! ✨\n\n![صورة](${data.imageUrl})` };
+      const assistantMsg: Message = { role: "assistant", content: `تم إنشاء الصورة بنجاح! ✨`, imageUrl: data.imageUrl };
       const finalMsgs = [...messages, userMsg, assistantMsg];
       setMessages(finalMsgs);
       await saveConversation(finalMsgs);
     } catch (err: any) {
       toast({ title: "خطأ في توليد الصورة", description: err.message, variant: "destructive" });
-    } finally {
-      setIsLoading(false);
-      setImagePrompt("");
-    }
+    } finally { setIsLoading(false); setImagePrompt(""); }
   };
 
   const webSearch = async (query: string, engine: string) => {
@@ -242,7 +411,6 @@ const Chat = () => {
     const userMsg: Message = { role: "user", content: `🔍 بحث: ${query}` };
     setMessages((prev) => [...prev, userMsg]);
     setIsLoading(true);
-
     try {
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/web-search`, {
         method: "POST",
@@ -257,61 +425,36 @@ const Chat = () => {
       await saveConversation(finalMsgs);
     } catch (err: any) {
       toast({ title: "خطأ في البحث", description: err.message, variant: "destructive" });
-    } finally {
-      setIsLoading(false);
-      setSearchQuery("");
-    }
+    } finally { setIsLoading(false); setSearchQuery(""); }
   };
 
-  const toggleRecording = async () => {
+  const toggleRecording = () => {
     if (isRecording) {
-      mediaRecorderRef.current?.stop();
+      recognitionRef.current?.stop();
       setIsRecording(false);
       return;
     }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const mediaRecorder = new MediaRecorder(stream);
-      const chunks: Blob[] = [];
-      mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
-      mediaRecorder.onstop = () => {
-        stream.getTracks().forEach(t => t.stop());
-        // Use Web Speech API for transcription
-        const SpeechRecogCtor = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-        const recognition = SpeechRecogCtor ? new SpeechRecogCtor() : null;
-        if (!recognition) {
-          toast({ title: "غير مدعوم", description: "متصفحك لا يدعم التعرف على الصوت", variant: "destructive" });
-          return;
-        }
-      };
-      mediaRecorderRef.current = mediaRecorder;
-      // Use Web Speech API directly
-      const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-      if (!SpeechRecognition) {
-        toast({ title: "غير مدعوم", description: "متصفحك لا يدعم التعرف على الصوت", variant: "destructive" });
-        stream.getTracks().forEach(t => t.stop());
-        return;
-      }
-      const recognition = new SpeechRecognition();
-      recognition.lang = "ar-EG";
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setInput(prev => prev + " " + transcript);
-        setIsRecording(false);
-        stream.getTracks().forEach(t => t.stop());
-      };
-      recognition.onerror = () => {
-        setIsRecording(false);
-        stream.getTracks().forEach(t => t.stop());
-      };
-      recognition.onend = () => setIsRecording(false);
-      recognition.start();
-      setIsRecording(true);
-    } catch {
-      toast({ title: "خطأ", description: "لا يمكن الوصول للميكروفون", variant: "destructive" });
+    const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+    if (!SpeechRecognition) {
+      toast({ title: "غير مدعوم", description: "متصفحك لا يدعم التعرف على الصوت. استخدم Chrome.", variant: "destructive" });
+      return;
     }
+    const recognition = new SpeechRecognition();
+    recognition.lang = "ar-EG";
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.onresult = (event: any) => {
+      let transcript = "";
+      for (let i = 0; i < event.results.length; i++) {
+        transcript += event.results[i][0].transcript;
+      }
+      setInput(transcript);
+    };
+    recognition.onerror = () => setIsRecording(false);
+    recognition.onend = () => setIsRecording(false);
+    recognitionRef.current = recognition;
+    recognition.start();
+    setIsRecording(true);
   };
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -322,14 +465,50 @@ const Chat = () => {
       const reader = new FileReader();
       reader.onload = (ev) => {
         const dataUrl = ev.target?.result as string;
-        const userMsg: Message = { role: "user", content: `📎 تم رفع صورة: ${file.name}\n\n![صورة](${dataUrl})` };
-        setMessages(prev => [...prev, userMsg]);
+        // Send to AI with image description request
+        const userMsg: Message = { role: "user", content: `📎 تم رفع صورة: ${file.name}\n\nالرجاء وصف وتحليل هذه الصورة.`, imageUrl: dataUrl };
+        const newMsgs = [...messages, userMsg];
+        setMessages(newMsgs);
+        // Send to AI for analysis
+        setIsLoading(true);
+        fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+          body: JSON.stringify({
+            messages: [{ role: "user", content: `الطالب رفع صورة باسم "${file.name}". الرجاء الرد عليه وسؤاله عما يريد معرفته عن هذه الصورة أو المحتوى المرتبط بها.` }],
+            model: selectedModel,
+            userName: profile?.display_name,
+          }),
+        }).then(resp => resp.body!.getReader()).then(async reader => {
+          const decoder = new TextDecoder();
+          let buf = "", ast = "";
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buf += decoder.decode(value, { stream: true });
+            let ni;
+            while ((ni = buf.indexOf("\n")) !== -1) {
+              let line = buf.slice(0, ni); buf = buf.slice(ni + 1);
+              if (!line.startsWith("data: ")) continue;
+              const js = line.slice(6).trim();
+              if (js === "[DONE]") break;
+              try { const p = JSON.parse(js); const c = p.choices?.[0]?.delta?.content; if (c) { ast += c; setMessages(prev => { const l = prev[prev.length - 1]; if (l?.role === "assistant") return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: ast } : m); return [...prev, { role: "assistant", content: ast }]; }); } } catch {}
+            }
+          }
+          const final2 = [...newMsgs, { role: "assistant" as const, content: ast }];
+          setMessages(final2);
+          await saveConversation(final2);
+          setIsLoading(false);
+        }).catch(() => setIsLoading(false));
       };
       reader.readAsDataURL(file);
     } else {
+      // Text-based files
       const text = await file.text().catch(() => null);
       if (text) {
-        setInput(prev => prev + `\n\n--- محتوى ${file.name} ---\n${text.slice(0, 3000)}`);
+        const content = `📎 محتوى الملف "${file.name}":\n\n${text.slice(0, 5000)}${text.length > 5000 ? "\n\n... (تم اقتطاع باقي المحتوى)" : ""}`;
+        setInput(prev => prev + "\n" + content);
+        toast({ title: "تم رفع الملف", description: `تم إضافة محتوى ${file.name} للرسالة` });
       } else {
         toast({ title: "غير مدعوم", description: "هذا النوع من الملفات غير مدعوم حالياً", variant: "destructive" });
       }
@@ -338,6 +517,7 @@ const Chat = () => {
   };
 
   const avatarUrl = profile?.avatar_url;
+  const displayName = profile?.display_name || "مستخدم";
 
   return (
     <div className="flex h-screen bg-background">
@@ -346,8 +526,7 @@ const Chat = () => {
         <div className="flex flex-col h-full p-4">
           <div className="flex items-center justify-between mb-4">
             <Button onClick={newChat} className="flex-1 bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 shadow-glow">
-              <Plus className="ml-2 h-4 w-4" />
-              محادثة جديدة
+              <Plus className="ml-2 h-4 w-4" /> محادثة جديدة
             </Button>
             <Button variant="ghost" size="icon" className="md:hidden mr-2" onClick={() => setSidebarOpen(false)}>
               <X className="h-5 w-5" />
@@ -356,20 +535,31 @@ const Chat = () => {
 
           <div className="flex-1 overflow-y-auto scrollbar-hide space-y-1">
             {conversations.map((conv) => (
-              <div
-                key={conv.id}
+              <div key={conv.id}
                 className={`group flex items-center justify-between rounded-xl px-3 py-2.5 cursor-pointer transition-all ${
                   currentConvId === conv.id ? "bg-primary/15 text-primary border border-primary/20" : "text-muted-foreground hover:bg-secondary/60"
                 }`}
-                onClick={() => loadConversation(conv.id)}
-              >
-                <div className="flex items-center gap-2 truncate flex-1">
-                  <MessageSquare className="h-4 w-4 shrink-0" />
-                  <span className="truncate text-sm">{conv.title}</span>
+                onClick={() => loadConversation(conv.id)}>
+                {editingConvId === conv.id ? (
+                  <input value={editingConvTitle} onChange={e => setEditingConvTitle(e.target.value)}
+                    onBlur={() => renameConversation(conv.id, editingConvTitle)}
+                    onKeyDown={e => e.key === "Enter" && renameConversation(conv.id, editingConvTitle)}
+                    className="flex-1 bg-transparent text-sm outline-none border-b border-primary/50 text-foreground"
+                    autoFocus onClick={e => e.stopPropagation()} />
+                ) : (
+                  <div className="flex items-center gap-2 truncate flex-1">
+                    <MessageSquare className="h-4 w-4 shrink-0" />
+                    <span className="truncate text-sm">{conv.title}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <button onClick={(e) => { e.stopPropagation(); setEditingConvId(conv.id); setEditingConvTitle(conv.title); }}>
+                    <Edit3 className="h-3.5 w-3.5 text-muted-foreground hover:text-primary" />
+                  </button>
+                  <button onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }}>
+                    <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                  </button>
                 </div>
-                <button onClick={(e) => { e.stopPropagation(); deleteConversation(conv.id); }} className="opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </button>
               </div>
             ))}
           </div>
@@ -380,19 +570,22 @@ const Chat = () => {
               <GraduationCap className="h-5 w-5 text-accent" />
               <span className="text-sm">الاختبارات</span>
             </button>
+            <button onClick={() => navigate("/forum")} className="flex items-center gap-3 w-full rounded-xl px-3 py-2.5 hover:bg-secondary/60 transition-colors text-foreground">
+              <UsersIcon className="h-5 w-5 text-primary" />
+              <span className="text-sm">منتدى الطلاب</span>
+            </button>
             <button onClick={() => navigate("/profile")} className="flex items-center gap-3 w-full rounded-xl px-3 py-2.5 hover:bg-secondary/60 transition-colors">
               {avatarUrl ? (
                 <img src={avatarUrl} alt="" className="h-8 w-8 rounded-full object-cover border border-primary/30" />
               ) : (
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-primary text-sm font-bold">
-                  {profile?.display_name?.[0] || "م"}
+                  {displayName[0]}
                 </div>
               )}
-              <span className="text-sm text-foreground truncate">{profile?.display_name || "مستخدم"}</span>
+              <span className="text-sm text-foreground truncate">{displayName}</span>
             </button>
             <Button variant="ghost" className="w-full justify-start text-muted-foreground hover:text-destructive" onClick={signOut}>
-              <LogOut className="ml-2 h-4 w-4" />
-              تسجيل الخروج
+              <LogOut className="ml-2 h-4 w-4" /> تسجيل الخروج
             </Button>
           </div>
         </div>
@@ -420,18 +613,15 @@ const Chat = () => {
               <ChevronDown className="mr-2 h-4 w-4" />
             </Button>
             {showModelPicker && (
-              <div className="absolute left-0 top-full mt-2 w-72 max-h-[70vh] overflow-y-auto rounded-xl glass-strong border border-border/60 p-2 z-50 scrollbar-hide">
+              <div className="absolute left-0 top-full mt-2 w-80 max-h-[70vh] overflow-y-auto rounded-xl glass-strong border border-border/60 p-2 z-50 scrollbar-hide">
                 {MODEL_CATEGORIES.map((cat) => (
                   <div key={cat.label}>
                     <div className="text-xs font-bold text-muted-foreground px-3 py-2 text-glow-purple">{cat.label}</div>
                     {cat.models.map((m) => (
-                      <button
-                        key={m.id}
-                        onClick={() => { setSelectedModel(m.id); setShowModelPicker(false); }}
+                      <button key={m.id} onClick={() => { setSelectedModel(m.id); setShowModelPicker(false); }}
                         className={`w-full text-right rounded-lg px-3 py-2 text-sm transition-all ${
                           selectedModel === m.id ? "bg-primary/15 text-primary border border-primary/20" : "text-foreground hover:bg-secondary/60"
-                        }`}
-                      >
+                        }`}>
                         <div className="font-medium">{m.label}</div>
                         <div className="text-xs text-muted-foreground">{m.desc}</div>
                       </button>
@@ -451,16 +641,25 @@ const Chat = () => {
                 <Sparkles className="h-12 w-12 text-primary" />
               </div>
               <h2 className="text-3xl font-bold mb-2">
-                <span className="text-gradient-cosmic">كيف يمكنني المساعدة؟</span>
+                <span className="text-gradient-cosmic">أهلاً {displayName}! 👋</span>
               </h2>
-              <p className="text-muted-foreground max-w-md text-sm">
-                اسأل عن أي شيء — مواد أزهرية، رياضيات، علوم، أو أي موضوع آخر
+              <p className="text-muted-foreground max-w-md text-sm mb-8">
+                كيف يمكنني مساعدتك اليوم؟ اسأل عن أي مادة أزهرية أو علمية
               </p>
+              {/* Suggestions */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
+                {SUGGESTIONS.slice(0, 4).map((s, i) => (
+                  <button key={i} onClick={() => sendMessage(s)}
+                    className="glass rounded-xl px-4 py-3 text-sm text-right text-foreground hover:border-primary/40 hover:bg-primary/5 transition-all">
+                    {s}
+                  </button>
+                ))}
+              </div>
             </div>
           ) : (
             <div className="max-w-3xl mx-auto space-y-6">
               {messages.map((msg, i) => (
-                <div key={i} className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
+                <div key={i} className={`group flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}>
                   <div className="shrink-0">
                     {msg.role === "user" ? (
                       avatarUrl ? (
@@ -479,9 +678,43 @@ const Chat = () => {
                   <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${
                     msg.role === "user" ? "bg-gradient-to-br from-primary/80 to-primary text-primary-foreground" : "bg-secondary/60 text-foreground border border-border/30"
                   }`}>
-                    <div className="prose prose-sm prose-invert max-w-none text-inherit [&_img]:rounded-xl [&_img]:max-h-80 [&_img]:w-auto">
-                      <ReactMarkdown>{msg.content}</ReactMarkdown>
-                    </div>
+                    {editingMsgIdx === i ? (
+                      <div className="space-y-2">
+                        <textarea value={editText} onChange={e => setEditText(e.target.value)}
+                          className="w-full bg-background/50 rounded-lg p-2 text-sm text-foreground outline-none resize-none" rows={3} />
+                        <div className="flex gap-2">
+                          <Button size="sm" onClick={submitEditMessage} className="bg-primary text-primary-foreground text-xs">إرسال</Button>
+                          <Button size="sm" variant="ghost" onClick={() => setEditingMsgIdx(null)} className="text-xs">إلغاء</Button>
+                        </div>
+                      </div>
+                    ) : (
+                      <>
+                        {msg.imageUrl && (
+                          <img src={msg.imageUrl} alt="uploaded" className="rounded-xl max-h-60 w-auto mb-2" />
+                        )}
+                        <div className="prose prose-sm prose-invert max-w-none text-inherit [&_img]:rounded-xl [&_img]:max-h-80 [&_img]:w-auto">
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        </div>
+                      </>
+                    )}
+                    {/* Action buttons */}
+                    {editingMsgIdx !== i && (
+                      <div className={`flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                        {msg.role === "user" && (
+                          <button onClick={() => editMessage(i)} className="p-1 rounded hover:bg-background/30" title="تعديل">
+                            <Edit3 className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                        <button onClick={() => copyText(msg.content, i)} className="p-1 rounded hover:bg-background/30" title="نسخ">
+                          {copiedIdx === i ? <Check className="h-3.5 w-3.5 text-primary" /> : <Copy className="h-3.5 w-3.5" />}
+                        </button>
+                        {msg.role === "assistant" && i === messages.length - 1 && (
+                          <button onClick={regenerateResponse} className="p-1 rounded hover:bg-background/30" title="إعادة الإجابة">
+                            <RotateCcw className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}
@@ -509,10 +742,7 @@ const Chat = () => {
           <div className="border-t border-border/40 p-4 glass-strong">
             <div className="max-w-3xl mx-auto">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                  <Image className="h-4 w-4 text-accent" />
-                  إنشاء صورة
-                </h3>
+                <h3 className="text-sm font-bold text-foreground flex items-center gap-2"><Image className="h-4 w-4 text-accent" /> إنشاء صورة</h3>
                 <button onClick={() => setShowImageGen(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
               </div>
               <div className="flex gap-2 mb-3 flex-wrap">
@@ -539,10 +769,7 @@ const Chat = () => {
           <div className="border-t border-border/40 p-4 glass-strong">
             <div className="max-w-3xl mx-auto">
               <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
-                  <Search className="h-4 w-4 text-primary" />
-                  بحث في الإنترنت
-                </h3>
+                <h3 className="text-sm font-bold text-foreground flex items-center gap-2"><Search className="h-4 w-4 text-primary" /> بحث في الإنترنت</h3>
                 <button onClick={() => setShowSearch(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
               </div>
               <div className="flex gap-2 mb-3 flex-wrap">
@@ -568,7 +795,6 @@ const Chat = () => {
         <div className="border-t border-border/40 p-4">
           <div className="max-w-3xl mx-auto">
             <div className="flex items-end gap-2 rounded-2xl glass-strong p-2 border border-border/30">
-              {/* Plus menu */}
               <div className="relative">
                 <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary shrink-0" onClick={() => setShowPlus(!showPlus)}>
                   <Plus className="h-5 w-5" />
@@ -585,31 +811,21 @@ const Chat = () => {
                     </button>
                     <button onClick={() => { setShowPlus(false); fileInputRef.current?.click(); }}
                       className="flex items-center gap-2 w-full rounded-lg px-3 py-2.5 text-sm text-foreground hover:bg-secondary/60 transition-colors">
-                      <Paperclip className="h-4 w-4 text-muted-foreground" /> رفع ملف
+                      <Paperclip className="h-4 w-4 text-muted-foreground" /> رفع ملف أو صورة
                     </button>
                   </div>
                 )}
               </div>
-
-              <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.txt,.pdf,.md,.csv,.json" onChange={handleFileUpload} />
-
-              <textarea
-                ref={inputRef}
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="اسأل عن أي شيء..."
-                rows={1}
+              <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.txt,.pdf,.md,.csv,.json,.doc,.docx" onChange={handleFileUpload} />
+              <textarea ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown}
+                placeholder="اسأل عن أي شيء..." rows={1}
                 className="flex-1 resize-none bg-transparent text-foreground placeholder:text-muted-foreground outline-none py-2 px-2 max-h-32"
-                style={{ minHeight: "40px" }}
-              />
-
+                style={{ minHeight: "40px" }} />
               <Button variant="ghost" size="icon" onClick={toggleRecording}
                 className={`shrink-0 ${isRecording ? "text-destructive animate-pulse" : "text-muted-foreground hover:text-primary"}`}>
                 {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
               </Button>
-
-              <Button onClick={sendMessage} disabled={!input.trim() || isLoading} size="icon"
+              <Button onClick={() => sendMessage()} disabled={!input.trim() || isLoading} size="icon"
                 className="bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 shrink-0 rounded-xl shadow-glow">
                 <Send className="h-4 w-4" />
               </Button>

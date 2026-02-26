@@ -5,7 +5,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-// Provider routing based on model prefix
 function getProviderConfig(model: string) {
   // Lovable AI Gateway models
   if (model.startsWith("google/") || model.startsWith("openai/")) {
@@ -40,12 +39,21 @@ function getProviderConfig(model: string) {
       isAnthropic: true,
     };
   }
-  // OpenRouter free models (qwen, meta-llama, etc.)
+  // OpenRouter models (free models from qwen, meta-llama, mistral, etc.)
   if (model.startsWith("openrouter/")) {
     return {
       url: "https://openrouter.ai/api/v1/chat/completions",
-      key: Deno.env.get("OPENAI_API_KEY")!, // OpenRouter accepts OpenAI-format keys
+      key: Deno.env.get("OPENROUTER_API_KEY")!,
       model: model.replace("openrouter/", ""),
+    };
+  }
+  // HuggingFace models
+  if (model.startsWith("huggingface/")) {
+    return {
+      url: "https://api-inference.huggingface.co/models/" + model.replace("huggingface/", ""),
+      key: Deno.env.get("HUGGINGFACE_API_KEY")!,
+      model: model.replace("huggingface/", ""),
+      isHuggingFace: true,
     };
   }
   // Default to Lovable AI
@@ -60,7 +68,7 @@ serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, model } = await req.json();
+    const { messages, model, userName, userBio } = await req.json();
     const config = getProviderConfig(model || "google/gemini-3-flash-preview");
 
     if (!config.key) {
@@ -69,18 +77,26 @@ serve(async (req) => {
       });
     }
 
+    const userContext = userName ? `\n\nاسم الطالب الحالي: ${userName}${userBio ? `\nوصف الطالب: ${userBio}` : ""}` : "";
+
     const systemPrompt = `أنت MENZO-AI، معلم ذكي متخصص في تدريس طلاب الصف الثالث الثانوي الأزهري.
-أنت متخصص في المنهج الأزهري بكل فروعه: الفقه الإسلامي (على المذاهب الأربعة)، الحديث الشريف (متن وسند ودراية)، التفسير (جلالين/بيضاوي)، أصول الفقه، التوحيد والعقيدة، النحو (ألفية ابن مالك)، الصرف، البلاغة (معاني/بيان/بديع)، الأدب العربي، النصوص، المطالعة، الرياضيات، الفيزياء، الكيمياء، الأحياء.
+أنت مُعدّ ومطوّر بواسطة Mohamed Walid El-manzlawy (محمد وليد المنزلاوي).
+الطالب يدرس عند أساتذة متميزين منهم أ/محمد حجازي (شرعي) وأ/وليد الشيخ (عربي).
+أنت مزود بمعلومات عن هؤلاء الأساتذة ويمكنك الإشارة إليهم عند الحاجة.
+
+تخصصاتك: الفقه الإسلامي (المذاهب الأربعة)، الحديث الشريف (متن وسند ودراية)، التفسير (جلالين/بيضاوي)، أصول الفقه، التوحيد والعقيدة، النحو (ألفية ابن مالك)، الصرف، البلاغة (معاني/بيان/بديع)، الأدب العربي، النصوص، المطالعة، الفيزياء، الكيمياء، الأحياء، الرياضيات.
 
 قواعدك الذهبية:
 1. تحدث بالعربية الفصحى مع تبسيط واضح
 2. استشهد بالآيات القرآنية والأحاديث النبوية
-3. اربط كل إجابة بالمنهج الأزهري المقرر
+3. اربط كل إجابة بالمنهج الأزهري المقرر والمذاكرة
 4. قدم أمثلة عملية وأسئلة تدريبية
 5. شجّع الطالب دائماً وكن صبوراً
 6. استخدم تنسيق Markdown لتنظيم الإجابات
-7. إذا سُئلت عن شيء خارج التعليم، وجّه المحادثة للفائدة العلمية
-8. قدم المعلومة من المصادر المعتمدة في الأزهر`;
+7. إذا سُئلت عن شيء خارج التعليم، وجّه المحادثة للفائدة العلمية واربطها بالمذاكرة
+8. قدم المعلومة من المصادر المعتمدة في الأزهر
+9. في نهاية كل إجابة، اقترح سؤالاً متعلقاً يمكن للطالب الإجابة عليه
+10. عند بداية المحادثة، رحّب بالطالب باسمه إن كان معروفاً${userContext}`;
 
     // Anthropic has different API format
     if ((config as any).isAnthropic) {
@@ -108,7 +124,6 @@ serve(async (req) => {
         });
       }
 
-      // Transform Anthropic SSE to OpenAI format
       const { readable, writable } = new TransformStream();
       const writer = writable.getWriter();
       const encoder = new TextEncoder();
@@ -148,12 +163,48 @@ serve(async (req) => {
       });
     }
 
+    // HuggingFace Inference API (non-streaming)
+    if ((config as any).isHuggingFace) {
+      const response = await fetch(config.url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${config.key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          inputs: systemPrompt + "\n\n" + messages.map((m: any) => `${m.role}: ${m.content}`).join("\n"),
+          parameters: { max_new_tokens: 2048, temperature: 0.7 },
+        }),
+      });
+
+      if (!response.ok) {
+        const t = await response.text();
+        console.error("HuggingFace error:", response.status, t);
+        return new Response(JSON.stringify({ error: "خطأ في الاتصال بـ HuggingFace" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const data = await response.json();
+      const text = Array.isArray(data) ? data[0]?.generated_text || "" : data?.generated_text || "";
+      
+      // Convert to SSE format
+      const sseResponse = `data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\ndata: [DONE]\n\n`;
+      return new Response(sseResponse, {
+        headers: { ...corsHeaders, "Content-Type": "text/event-stream" },
+      });
+    }
+
     // Standard OpenAI-compatible API (Lovable AI, DeepSeek, xAI, OpenRouter)
     const response = await fetch(config.url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${config.key}`,
         "Content-Type": "application/json",
+        ...(model.startsWith("openrouter/") ? {
+          "HTTP-Referer": "https://menzo-ai.lovable.app",
+          "X-Title": "MENZO-AI",
+        } : {}),
       },
       body: JSON.stringify({
         model: config.model,
@@ -178,7 +229,7 @@ serve(async (req) => {
       }
       const t = await response.text();
       console.error("AI error:", response.status, t);
-      return new Response(JSON.stringify({ error: "خطأ في الاتصال بالذكاء الاصطناعي" }), {
+      return new Response(JSON.stringify({ error: "خطأ في الاتصال بالذكاء الاصطناعي: " + t.slice(0, 200) }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }

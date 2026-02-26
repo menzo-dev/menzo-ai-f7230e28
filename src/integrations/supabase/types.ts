@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      contact_messages: {
+        Row: {
+          admin_reply: string | null
+          created_at: string | null
+          email: string
+          id: string
+          is_read: boolean | null
+          message: string
+          name: string
+          user_id: string | null
+        }
+        Insert: {
+          admin_reply?: string | null
+          created_at?: string | null
+          email: string
+          id?: string
+          is_read?: boolean | null
+          message: string
+          name: string
+          user_id?: string | null
+        }
+        Update: {
+          admin_reply?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          is_read?: boolean | null
+          message?: string
+          name?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       conversations: {
         Row: {
           created_at: string | null
@@ -40,6 +73,81 @@ export type Database = {
           messages?: Json | null
           model?: string | null
           title?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      exam_results: {
+        Row: {
+          answers: Json | null
+          created_at: string | null
+          difficulty: number | null
+          id: string
+          model_used: string | null
+          percentage: number
+          questions: Json | null
+          score: number
+          subject: string
+          title: string | null
+          total: number
+          user_id: string
+        }
+        Insert: {
+          answers?: Json | null
+          created_at?: string | null
+          difficulty?: number | null
+          id?: string
+          model_used?: string | null
+          percentage: number
+          questions?: Json | null
+          score: number
+          subject: string
+          title?: string | null
+          total: number
+          user_id: string
+        }
+        Update: {
+          answers?: Json | null
+          created_at?: string | null
+          difficulty?: number | null
+          id?: string
+          model_used?: string | null
+          percentage?: number
+          questions?: Json | null
+          score?: number
+          subject?: string
+          title?: string | null
+          total?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
+      forum_posts: {
+        Row: {
+          audio_url: string | null
+          content: string
+          created_at: string | null
+          id: string
+          image_url: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          audio_url?: string | null
+          content: string
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          audio_url?: string | null
+          content?: string
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          updated_at?: string | null
           user_id?: string
         }
         Relationships: []
@@ -77,29 +185,68 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          image_url: string | null
+          is_read: boolean | null
+          message: string
+          title: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          is_read?: boolean | null
+          message: string
+          title: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          image_url?: string | null
+          is_read?: boolean | null
+          message?: string
+          title?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
           azhar_class: string | null
+          bio: string | null
           created_at: string | null
           display_name: string | null
+          division: string | null
           id: string
+          phone: string | null
           updated_at: string | null
         }
         Insert: {
           avatar_url?: string | null
           azhar_class?: string | null
+          bio?: string | null
           created_at?: string | null
           display_name?: string | null
+          division?: string | null
           id: string
+          phone?: string | null
           updated_at?: string | null
         }
         Update: {
           avatar_url?: string | null
           azhar_class?: string | null
+          bio?: string | null
           created_at?: string | null
           display_name?: string | null
+          division?: string | null
           id?: string
+          phone?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -144,6 +291,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      site_settings: {
+        Row: {
+          id: string
+          key: string
+          updated_at: string | null
+          updated_by: string | null
+          value: string | null
+        }
+        Insert: {
+          id?: string
+          key: string
+          updated_at?: string | null
+          updated_by?: string | null
+          value?: string | null
+        }
+        Update: {
+          id?: string
+          key?: string
+          updated_at?: string | null
+          updated_by?: string | null
+          value?: string | null
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {

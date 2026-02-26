@@ -1,7 +1,7 @@
 import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { Bot, BookOpen, Brain, Search, Image, GraduationCap, MessageSquare, Sparkles, Shield, Zap, Mic, Globe } from "lucide-react";
+import { Bot, BookOpen, Brain, Search, Image, GraduationCap, MessageSquare, Sparkles, Shield, Zap, Mic, Globe, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const features = [
@@ -12,7 +12,7 @@ const features = [
   { icon: Image, title: "توليد صور", desc: "Gemini Image + FLUX.1 + Leonardo AI — إنشاء صور احترافية" },
   { icon: GraduationCap, title: "اختبارات تفاعلية", desc: "أسئلة ذكية مع مستويات صعوبة وتصحيح فوري" },
   { icon: Mic, title: "إدخال صوتي", desc: "تحدث بصوتك والذكاء الاصطناعي يفهمك" },
-  { icon: Globe, title: "نماذج مجانية", desc: "DeepSeek R1 • Qwen 3 • Llama 4 — مجاناً بالكامل" },
+  { icon: Users, title: "منتدى الطلاب", desc: "تواصل مع زملائك وشارك الملفات والصور" },
 ];
 
 const Landing = () => {
@@ -50,7 +50,6 @@ const Landing = () => {
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute top-1/4 right-1/4 h-96 w-96 rounded-full bg-primary/8 blur-3xl animate-pulse-glow" />
           <div className="absolute bottom-1/4 left-1/4 h-64 w-64 rounded-full bg-accent/10 blur-3xl animate-pulse-glow" style={{ animationDelay: "1s" }} />
-          <div className="absolute top-1/2 left-1/2 h-48 w-48 rounded-full bg-primary/5 blur-3xl animate-pulse-glow" style={{ animationDelay: "2s" }} />
         </div>
         <div className="container mx-auto relative z-10 text-center">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.8 }}>
@@ -59,12 +58,11 @@ const Landing = () => {
               مدعوم بأحدث نماذج الذكاء الاصطناعي العالمية
             </div>
             <h1 className="mb-6 text-5xl font-black leading-tight md:text-7xl">
-              <span className="text-foreground">معلمك الذكي</span>
-              <br />
+              <span className="text-foreground">معلمك الذكي</span><br />
               <span className="text-gradient-cosmic text-glow-cyan">للأزهر الشريف</span>
             </h1>
             <p className="mx-auto mb-10 max-w-2xl text-lg text-muted-foreground leading-relaxed">
-              منصة تعليمية متكاملة لطلاب الصف الثالث الثانوي الأزهري. محادثة ذكية، اختبارات تفاعلية، وبحث متقدم — مدعوم بأكثر من 20 نموذج ذكاء اصطناعي.
+              منصة تعليمية متكاملة لطلاب الصف الثالث الثانوي الأزهري. محادثة ذكية، اختبارات تفاعلية، وبحث متقدم — مدعوم بأكثر من 30 نموذج ذكاء اصطناعي.
             </p>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               {user ? (
@@ -110,7 +108,7 @@ const Landing = () => {
         <div className="container mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-primary" />
-            <span className="text-sm text-muted-foreground">MENZO-AI © 2026 — تطوير محمد وليد المنزلاوي</span>
+            <span className="text-sm text-muted-foreground">MENZO-AI © 2026 — Developed by Mohamed Walid El-manzlawy</span>
           </div>
           <button onClick={() => navigate("/about")} className="text-sm text-muted-foreground hover:text-primary transition-colors">عن المطور</button>
         </div>
