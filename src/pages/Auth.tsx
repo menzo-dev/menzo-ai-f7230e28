@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Bot, Mail, Lock, User, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect } from "react";
 
 const Auth = () => {
   const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
@@ -18,8 +17,16 @@ const Auth = () => {
   const { toast } = useToast();
   const { user } = useAuth();
 
+  // إعادة التوجيه حسب الدور
   useEffect(() => {
-    if (user) navigate("/chat", { replace: true });
+    if (user) {
+      const role = user?.user_metadata?.role; 
+      if (role === "admin") {
+        navigate("/admin", { replace: true });
+      } else {
+        navigate("/chat", { replace: true });
+      }
+    }
   }, [user, navigate]);
 
   const handleAuth = async (e: React.FormEvent) => {
@@ -28,30 +35,47 @@ const Auth = () => {
 
     try {
       if (mode === "forgot") {
+        // إعادة تعيين كلمة المرور مع رسالة مخصصة
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/reset-password`,
+          // Supabase يسمح بتعديل HTML للرسالة فقط عن طريق "SMTP Templates"
+          // لكن نقدر نرسل البريد بشكل واضح مع الإعدادات الحالية
         });
         if (error) throw error;
-        toast({ title: "تم الإرسال", description: "تحقق من بريدك الإلكتروني لإعادة تعيين كلمة المرور" });
+
+        toast({
+          title: "تم الإرسال",
+          description: `Reset your password
+You recently requested to reset your password. Click the button below to choose a new one:
+Reset Password
+If you didn’t request this, you can safely ignore this email.`,
+        });
         setMode("login");
       } else if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast({ title: "مرحباً بك!", description: "تم تسجيل الدخول بنجاح" });
-        navigate("/chat");
+
+        // سيتم إعادة التوجيه تلقائياً من useEffect حسب الدور
       } else {
+        // إنشاء حساب مع role و رسالة التحقق
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            data: { display_name: displayName },
+            data: { display_name: displayName, role: "user" }, // "admin" إذا حساب أدمن
             emailRedirectTo: window.location.origin,
           },
         });
         if (error) throw error;
+
         toast({
           title: "تم إنشاء الحساب!",
-          description: "تحقق من بريدك الإلكتروني لتأكيد الحساب",
+          description: `Confirm your email
+Thanks for signing up for MENZO AI Tutor app!
+Please confirm your email address (${email}) by clicking the button below:
+Verify Email
+If you didn’t create an account, you can safely ignore this email.`,
         });
       }
     } catch (err: any) {
