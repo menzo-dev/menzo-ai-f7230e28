@@ -15,19 +15,19 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, role } = useAuth();
 
-  // إعادة التوجيه حسب الدور
   useEffect(() => {
-    if (user) {
-      const role = user?.user_metadata?.role; 
+    if (user && role) {
       if (role === "admin") {
         navigate("/admin", { replace: true });
       } else {
         navigate("/chat", { replace: true });
       }
+    } else if (user && !role) {
+      // role not loaded yet, wait
     }
-  }, [user, navigate]);
+  }, [user, role, navigate]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,47 +35,32 @@ const Auth = () => {
 
     try {
       if (mode === "forgot") {
-        // إعادة تعيين كلمة المرور مع رسالة مخصصة
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
           redirectTo: `${window.location.origin}/reset-password`,
-          // Supabase يسمح بتعديل HTML للرسالة فقط عن طريق "SMTP Templates"
-          // لكن نقدر نرسل البريد بشكل واضح مع الإعدادات الحالية
         });
         if (error) throw error;
-
         toast({
           title: "تم الإرسال",
-          description: `Reset your password
-You recently requested to reset your password. Click the button below to choose a new one:
-Reset Password
-If you didn’t request this, you can safely ignore this email.`,
+          description: "تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني",
         });
         setMode("login");
       } else if (mode === "login") {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast({ title: "مرحباً بك!", description: "تم تسجيل الدخول بنجاح" });
-
-        // سيتم إعادة التوجيه تلقائياً من useEffect حسب الدور
       } else {
-        // إنشاء حساب مع role و رسالة التحقق
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            data: { display_name: displayName, role: "user" }, // "admin" إذا حساب أدمن
+            data: { display_name: displayName },
             emailRedirectTo: window.location.origin,
           },
         });
         if (error) throw error;
-
         toast({
           title: "تم إنشاء الحساب!",
-          description: `Confirm your email
-Thanks for signing up for MENZO AI Tutor app!
-Please confirm your email address (${email}) by clicking the button below:
-Verify Email
-If you didn’t create an account, you can safely ignore this email.`,
+          description: "تم إرسال رسالة تأكيد إلى بريدك الإلكتروني. يرجى التحقق منها.",
         });
       }
     } catch (err: any) {
