@@ -117,6 +117,7 @@ const Chat = () => {
   const [selectedModel, setSelectedModel] = useState(ALL_MODELS[0].id);
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [uploadedFile, setUploadedFile] = useState<{name: string; type: string; preview?: string} | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConvId, setCurrentConvId] = useState<string | null>(null);
   const [showPlus, setShowPlus] = useState(false);
@@ -379,7 +380,7 @@ const Chat = () => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); uploadedFile ? sendWithFile() : sendMessage(); }
   };
 
   const generateImage = async (prompt: string, model: string) => {
@@ -465,55 +466,107 @@ const Chat = () => {
       const reader = new FileReader();
       reader.onload = (ev) => {
         const dataUrl = ev.target?.result as string;
-        // Send to AI with image description request
-        const userMsg: Message = { role: "user", content: `📎 تم رفع صورة: ${file.name}\n\nالرجاء وصف وتحليل هذه الصورة.`, imageUrl: dataUrl };
-        const newMsgs = [...messages, userMsg];
-        setMessages(newMsgs);
-        // Send to AI for analysis
-        setIsLoading(true);
-        fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-          body: JSON.stringify({
-            messages: [{ role: "user", content: `الطالب رفع صورة باسم "${file.name}". الرجاء الرد عليه وسؤاله عما يريد معرفته عن هذه الصورة أو المحتوى المرتبط بها.` }],
-            model: selectedModel,
-            userName: profile?.display_name,
-          }),
-        }).then(resp => resp.body!.getReader()).then(async reader => {
-          const decoder = new TextDecoder();
-          let buf = "", ast = "";
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buf += decoder.decode(value, { stream: true });
-            let ni;
-            while ((ni = buf.indexOf("\n")) !== -1) {
-              let line = buf.slice(0, ni); buf = buf.slice(ni + 1);
-              if (!line.startsWith("data: ")) continue;
-              const js = line.slice(6).trim();
-              if (js === "[DONE]") break;
-              try { const p = JSON.parse(js); const c = p.choices?.[0]?.delta?.content; if (c) { ast += c; setMessages(prev => { const l = prev[prev.length - 1]; if (l?.role === "assistant") return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: ast } : m); return [...prev, { role: "assistant", content: ast }]; }); } } catch {}
-            }
-          }
-          const final2 = [...newMsgs, { role: "assistant" as const, content: ast }];
-          setMessages(final2);
-          await saveConversation(final2);
-          setIsLoading(false);
-        }).catch(() => setIsLoading(false));
+        setUploadedFile({ name: file.name, type: "image", preview: dataUrl });
       };
       reader.readAsDataURL(file);
     } else {
-      // Text-based files
+      // Text-based files - read content and show as attached
       const text = await file.text().catch(() => null);
       if (text) {
-        const content = `📎 محتوى الملف "${file.name}":\n\n${text.slice(0, 5000)}${text.length > 5000 ? "\n\n... (تم اقتطاع باقي المحتوى)" : ""}`;
-        setInput(prev => prev + "\n" + content);
-        toast({ title: "تم رفع الملف", description: `تم إضافة محتوى ${file.name} للرسالة` });
+        const content = text.slice(0, 8000);
+        setUploadedFile({ name: file.name, type: "text", preview: content });
       } else {
         toast({ title: "غير مدعوم", description: "هذا النوع من الملفات غير مدعوم حالياً", variant: "destructive" });
       }
     }
     e.target.value = "";
+  };
+
+  const sendWithFile = async () => {
+    if (!uploadedFile && !input.trim()) return;
+    if (isLoading) return;
+
+    let userContent = input.trim();
+    let userImageUrl: string | undefined;
+
+    if (uploadedFile) {
+      if (uploadedFile.type === "image") {
+        userImageUrl = uploadedFile.preview;
+        userContent = userContent || `📎 صورة: ${uploadedFile.name}`;
+      } else {
+        const fileContent = `📎 محتوى الملف "${uploadedFile.name}":\n\`\`\`\n${uploadedFile.preview?.slice(0, 5000)}\n\`\`\``;
+        userContent = userContent ? `${userContent}\n\n${fileContent}` : fileContent;
+      }
+      setUploadedFile(null);
+    }
+
+    if (!userContent) return;
+    const userMsg: Message = { role: "user", content: userContent, imageUrl: userImageUrl };
+    const newMsgs = [...messages, userMsg];
+    setMessages(newMsgs);
+    setInput("");
+    setIsLoading(true);
+
+    try {
+      const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+      const resp = await fetch(CHAT_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+        body: JSON.stringify({
+          messages: newMsgs.map(m => ({ role: m.role, content: m.content })),
+          model: selectedModel,
+          userName: profile?.display_name,
+          userBio: profile?.bio,
+        }),
+      });
+
+      if (!resp.ok) {
+        const errData = await resp.json().catch(() => ({}));
+        throw new Error(errData.error || "فشل الاتصال بالخادم");
+      }
+      if (!resp.body) throw new Error("No response body");
+
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let textBuffer = "";
+      let assistantSoFar = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        textBuffer += decoder.decode(value, { stream: true });
+        let newlineIndex: number;
+        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+          let line = textBuffer.slice(0, newlineIndex);
+          textBuffer = textBuffer.slice(newlineIndex + 1);
+          if (line.endsWith("\r")) line = line.slice(0, -1);
+          if (line.startsWith(":") || line.trim() === "") continue;
+          if (!line.startsWith("data: ")) continue;
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === "[DONE]") break;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) {
+              assistantSoFar += content;
+              setMessages((prev) => {
+                const last = prev[prev.length - 1];
+                if (last?.role === "assistant") return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
+                return [...prev, { role: "assistant", content: assistantSoFar }];
+              });
+            }
+          } catch { textBuffer = line + "\n" + textBuffer; break; }
+        }
+      }
+
+      const finalMsgs = [...newMsgs, { role: "assistant" as const, content: assistantSoFar }];
+      setMessages(finalMsgs);
+      await saveConversation(finalMsgs);
+    } catch (err: any) {
+      toast({ title: "خطأ", description: err.message, variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const avatarUrl = profile?.avatar_url;
@@ -794,6 +847,21 @@ const Chat = () => {
         {/* Input */}
         <div className="border-t border-border/40 p-4">
           <div className="max-w-3xl mx-auto">
+            {/* File preview */}
+            {uploadedFile && (
+              <div className="mb-2 flex items-center gap-2 rounded-xl bg-secondary/60 border border-border/30 px-3 py-2">
+                {uploadedFile.type === "image" && uploadedFile.preview && (
+                  <img src={uploadedFile.preview} alt="" className="h-12 w-12 rounded-lg object-cover" />
+                )}
+                {uploadedFile.type === "text" && (
+                  <Paperclip className="h-5 w-5 text-primary shrink-0" />
+                )}
+                <span className="text-sm text-foreground truncate flex-1">{uploadedFile.name}</span>
+                <button onClick={() => setUploadedFile(null)} className="text-muted-foreground hover:text-destructive">
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            )}
             <div className="flex items-end gap-2 rounded-2xl glass-strong p-2 border border-border/30">
               <div className="relative">
                 <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary shrink-0" onClick={() => setShowPlus(!showPlus)}>
@@ -825,7 +893,7 @@ const Chat = () => {
                 className={`shrink-0 ${isRecording ? "text-destructive animate-pulse" : "text-muted-foreground hover:text-primary"}`}>
                 {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
               </Button>
-              <Button onClick={() => sendMessage()} disabled={!input.trim() || isLoading} size="icon"
+              <Button onClick={() => uploadedFile ? sendWithFile() : sendMessage()} disabled={(!input.trim() && !uploadedFile) || isLoading} size="icon"
                 className="bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 shrink-0 rounded-xl shadow-glow">
                 <Send className="h-4 w-4" />
               </Button>
