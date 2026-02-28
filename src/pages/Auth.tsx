@@ -13,70 +13,60 @@ const Auth = () => {
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
   const [loading, setLoading] = useState(false);
+
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, role } = useAuth();
 
   useEffect(() => {
     if (user && role) {
-      if (role === "admin") navigate("/admin", { replace: true });
-      else navigate("/chat", { replace: true });
+      navigate(role === "admin" ? "/admin" : "/chat", { replace: true });
     }
   }, [user, role, navigate]);
 
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
+  // Generic function for handling Supabase responses
+  const handleResponse = (error: any, successMsg: string) => {
+    if (error) {
+      toast({ title: "خطأ", description: error.message || "حدث خطأ غير متوقع", variant: "destructive" });
+      return false;
+    }
+    toast({ title: successMsg });
+    return true;
+  };
 
-    try {
-      if (mode === "forgot") {
-        // Reset password
-        const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/reset-password`,
-        });
-        if (error) throw error;
-        toast({
-          title: "تم الإرسال",
-          description: "تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني",
-        });
-        setMode("login");
-      } else if (mode === "login") {
-        // Sign in
-        const { error, data } = await supabase.auth.signInWithPassword({ email, password });
-        if (error) throw error;
-
-        toast({
-          title: "مرحباً بك!",
-          description: "تم تسجيل الدخول بنجاح",
-        });
-      } else {
-        // Sign up (Lavable handles confirmation internally)
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            data: { display_name: displayName },
-          },
-        });
-        if (error) throw error;
-
-        toast({
-          title: "تم إنشاء الحساب!",
-          description: "يمكنك الآن تسجيل الدخول باستخدام بريدك وكلمة المرور.",
-        });
-
-        // Clear form
+  const authActions = {
+    login: async () => {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      return handleResponse(error, "تم تسجيل الدخول بنجاح");
+    },
+    signup: async () => {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: { data: { display_name: displayName } },
+      });
+      const success = handleResponse(error, "تم إنشاء الحساب! يمكنك الآن تسجيل الدخول");
+      if (success) {
         setEmail("");
         setPassword("");
         setDisplayName("");
         setMode("login");
       }
-    } catch (err: any) {
-      toast({
-        title: "خطأ",
-        description: err.message || "حدث خطأ غير متوقع",
-        variant: "destructive",
+    },
+    forgot: async () => {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
       });
+      const success = handleResponse(error, "تم إرسال رابط إعادة تعيين كلمة المرور إلى بريدك الإلكتروني");
+      if (success) setMode("login");
+    },
+  };
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      await authActions[mode]();
     } finally {
       setLoading(false);
     }
@@ -127,6 +117,7 @@ const Auth = () => {
                 />
               </div>
             )}
+
             <div className="relative">
               <Mail className="absolute right-3 top-3 h-5 w-5 text-muted-foreground" />
               <Input
@@ -138,6 +129,7 @@ const Auth = () => {
                 required
               />
             </div>
+
             {mode !== "forgot" && (
               <div className="relative">
                 <Lock className="absolute right-3 top-3 h-5 w-5 text-muted-foreground" />
@@ -152,6 +144,7 @@ const Auth = () => {
                 />
               </div>
             )}
+
             <Button
               type="submit"
               disabled={loading}
@@ -173,76 +166,6 @@ const Auth = () => {
                 onClick={() => setMode("forgot")}
                 className="text-sm text-muted-foreground hover:text-primary block w-full"
               >
-                نسيت كلمة المرور؟
-              </button>
-            )}
-            <button
-              onClick={() => setMode(mode === "login" ? "signup" : "login")}
-              className="text-sm text-primary hover:underline"
-            >
-              {mode === "login" ? "ليس لديك حساب؟ أنشئ حساباً" : "لديك حساب بالفعل؟ سجل دخول"}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-export default Auth;          </div>
-
-          <form onSubmit={handleAuth} className="space-y-4">
-            {mode === "signup" && (
-              <div className="relative">
-                <User className="absolute right-3 top-3 h-5 w-5 text-muted-foreground" />
-                <Input
-                  placeholder="الاسم الكامل"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  className="pr-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground"
-                  required
-                />
-              </div>
-            )}
-            <div className="relative">
-              <Mail className="absolute right-3 top-3 h-5 w-5 text-muted-foreground" />
-              <Input
-                type="email"
-                placeholder="البريد الإلكتروني"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="pr-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground"
-                required
-              />
-            </div>
-            {mode !== "forgot" && (
-              <div className="relative">
-                <Lock className="absolute right-3 top-3 h-5 w-5 text-muted-foreground" />
-                <Input
-                  type="password"
-                  placeholder="كلمة المرور"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pr-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground"
-                  required
-                  minLength={6}
-                />
-              </div>
-            )}
-            <Button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow py-6 text-base font-semibold"
-            >
-              {loading ? (
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary-foreground border-t-transparent" />
-              ) : mode === "login" ? "دخول" : mode === "signup" ? "إنشاء حساب" : "إرسال رابط إعادة التعيين"}
-            </Button>
-          </form>
-
-          <div className="mt-6 text-center space-y-2">
-            {mode === "login" && (
-              <button onClick={() => setMode("forgot")} className="text-sm text-muted-foreground hover:text-primary block w-full">
                 نسيت كلمة المرور؟
               </button>
             )}
