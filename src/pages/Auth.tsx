@@ -17,6 +17,7 @@ const Auth = () => {
   const { toast } = useToast();
   const { user, role } = useAuth();
 
+  // 1. التوجيه بناءً على حالة المستخدم
   useEffect(() => {
     if (user && role) {
       if (role === "admin") {
@@ -24,10 +25,43 @@ const Auth = () => {
       } else {
         navigate("/chat", { replace: true });
       }
-    } else if (user && !role) {
-      // role not loaded yet, wait
     }
+    // إذا كان user موجوداً ولكن role لم تُحمّل بعد، ننتظر
   }, [user, role, navigate]);
+
+  // 2. معالجة رابط تأكيد البريد الإلكتروني عند تحميل الصفحة
+  useEffect(() => {
+    const handleEmailConfirmation = async () => {
+      // فحص الهاش (مثل #access_token=xxx&type=signup)
+      const hashParams = new URLSearchParams(window.location.hash.substring(1));
+      const type = hashParams.get('type');
+      const accessToken = hashParams.get('access_token');
+      const refreshToken = hashParams.get('refresh_token');
+
+      if (type === 'signup' && accessToken) {
+        // تعيين الجلسة يدوياً باستخدام الرمز الموجود في الهاش
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken || '',
+        });
+        if (!error) {
+          toast({
+            title: "تم تأكيد البريد الإلكتروني",
+            description: "تم تفعيل حسابك بنجاح. جاري تحويلك...",
+          });
+          // المستخدم سينتقل تلقائياً بفضل useEffect أعلاه
+        } else {
+          toast({
+            title: "خطأ في التأكيد",
+            description: error.message,
+            variant: "destructive",
+          });
+        }
+      }
+    };
+
+    handleEmailConfirmation();
+  }, [toast, navigate]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,12 +83,14 @@ const Auth = () => {
         if (error) throw error;
         toast({ title: "مرحباً بك!", description: "تم تسجيل الدخول بنجاح" });
       } else {
+        // وضع التسجيل (signup) مع تحديد رابط التأكيد
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
             data: { display_name: displayName },
-            emailRedirectTo: window.location.origin,
+            // نوجه المستخدم إلى نفس الصفحة لاستقبال رمز التأكيد
+            emailRedirectTo: window.location.href,
           },
         });
         if (error) throw error;
