@@ -7,8 +7,10 @@ import { Bot, Mail, Lock, User, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 
+type Mode = "login" | "signup" | "forgot";
+
 const Auth = () => {
-  const [mode, setMode] = useState<"login" | "signup" | "forgot">("login");
+  const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -24,20 +26,25 @@ const Auth = () => {
     }
   }, [user, role, navigate]);
 
-  // Generic function for handling Supabase responses
+  // Generic response handler
   const handleResponse = (error: any, successMsg: string) => {
     if (error) {
-      toast({ title: "خطأ", description: error.message || "حدث خطأ غير متوقع", variant: "destructive" });
+      toast({
+        title: "خطأ",
+        description: error.message || "حدث خطأ غير متوقع",
+        variant: "destructive",
+      });
       return false;
     }
     toast({ title: successMsg });
     return true;
   };
 
-  const authActions = {
+  // Authentication handlers separated for clarity
+  const authHandlers: Record<Mode, () => Promise<void>> = {
     login: async () => {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      return handleResponse(error, "تم تسجيل الدخول بنجاح");
+      handleResponse(error, "تم تسجيل الدخول بنجاح");
     },
     signup: async () => {
       const { error } = await supabase.auth.signUp({
@@ -66,7 +73,7 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await authActions[mode]();
+      await authHandlers[mode]();
     } finally {
       setLoading(false);
     }
@@ -93,7 +100,11 @@ const Auth = () => {
               <Bot className="h-8 w-8 text-primary-foreground" />
             </div>
             <h1 className="text-2xl font-bold text-foreground">
-              {mode === "login" ? "تسجيل الدخول" : mode === "signup" ? "إنشاء حساب جديد" : "نسيت كلمة المرور"}
+              {mode === "login"
+                ? "تسجيل الدخول"
+                : mode === "signup"
+                ? "إنشاء حساب جديد"
+                : "نسيت كلمة المرور"}
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
               {mode === "login"
