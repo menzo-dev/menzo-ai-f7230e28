@@ -3,7 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Send, Image, Mic, MicOff, Trash2, User } from "lucide-react";
+import { ArrowLeft, Send, Image, Trash2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 interface ForumPost {
@@ -17,7 +17,7 @@ interface ForumPost {
 }
 
 const Forum = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, role } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [posts, setPosts] = useState<ForumPost[]>([]);
@@ -25,14 +25,13 @@ const Forum = () => {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [isAdmin, setIsAdmin] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  const isAdmin = role === "admin";
+
   useEffect(() => {
     loadPosts();
-    checkAdmin();
-    // Realtime subscription
     const channel = supabase
       .channel("forum_posts")
       .on("postgres_changes", { event: "*", schema: "public", table: "forum_posts" }, () => loadPosts())
@@ -42,17 +41,11 @@ const Forum = () => {
 
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [posts]);
 
-  const checkAdmin = async () => {
-    if (!user) return;
-    const { data } = await supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle();
-    if (data) setIsAdmin(true);
-  };
-
   const loadPosts = async () => {
     const { data } = await supabase.from("forum_posts").select("*").order("created_at", { ascending: true }).limit(200);
     if (!data) return;
-    // Load profiles for each unique user
     const userIds = [...new Set(data.map(p => p.user_id))];
+    if (userIds.length === 0) { setPosts([]); return; }
     const { data: profiles } = await supabase.from("profiles").select("id, display_name, avatar_url").in("id", userIds);
     const profileMap = new Map((profiles || []).map(p => [p.id, p]));
     setPosts(data.map(p => ({ ...p, profile: profileMap.get(p.user_id) || undefined })));
@@ -97,7 +90,7 @@ const Forum = () => {
 
   const deletePost = async (postId: string) => {
     const { error } = await supabase.from("forum_posts").delete().eq("id", postId);
-    if (error) toast({ title: "خطأ", description: "لا يمكن حذف هذه الرسالة (مرّ أكثر من 5 ساعات)", variant: "destructive" });
+    if (error) toast({ title: "خطأ", description: "لا يمكن حذف هذه الرسالة", variant: "destructive" });
   };
 
   const canDelete = (post: ForumPost) => {
@@ -109,7 +102,6 @@ const Forum = () => {
 
   return (
     <div className="flex flex-col h-screen bg-gradient-hero">
-      {/* Header */}
       <div className="flex items-center gap-3 px-4 py-3 glass-strong border-b border-border/40">
         <button onClick={() => navigate("/chat")} className="text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-5 w-5" />
@@ -119,8 +111,13 @@ const Forum = () => {
         </h1>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 scrollbar-hide">
+        {posts.length === 0 && (
+          <div className="text-center text-muted-foreground mt-20">
+            <p className="text-lg">لا توجد منشورات بعد</p>
+            <p className="text-sm mt-2">كن أول من يشارك! 💬</p>
+          </div>
+        )}
         {posts.map(post => {
           const isOwn = post.user_id === user?.id;
           return (
@@ -157,7 +154,6 @@ const Forum = () => {
         <div ref={bottomRef} />
       </div>
 
-      {/* Image preview */}
       {imagePreview && (
         <div className="px-4 py-2 border-t border-border/40 glass-strong">
           <div className="flex items-center gap-2">
@@ -169,7 +165,6 @@ const Forum = () => {
         </div>
       )}
 
-      {/* Input */}
       <div className="border-t border-border/40 p-4 glass-strong">
         <div className="max-w-3xl mx-auto flex items-end gap-2">
           <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary shrink-0" onClick={() => fileInputRef.current?.click()}>

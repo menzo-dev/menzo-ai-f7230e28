@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Bot, Lock, Eye, EyeOff, CheckCircle2 } from "lucide-react";
+import { Bot, Lock, Eye, EyeOff, CheckCircle2, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const ResetPassword = () => {
@@ -18,24 +18,21 @@ const ResetPassword = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Listen for the PASSWORD_RECOVERY event from supabase auth
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
         setSessionReady(true);
       }
     });
 
-    // Also check current hash for recovery token (handles page reload)
+    // Check URL hash for recovery token
     const hash = window.location.hash;
-    if (hash.includes("type=recovery")) {
+    if (hash && (hash.includes("type=recovery") || hash.includes("access_token"))) {
       setSessionReady(true);
     }
 
-    // Check if user already has a session (came from email link)
+    // Check if user already has a session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        setSessionReady(true);
-      }
+      if (session) setSessionReady(true);
     });
 
     return () => subscription.unsubscribe();
@@ -59,7 +56,7 @@ const ResetPassword = () => {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
       setSuccess(true);
-      toast({ title: "تم!", description: "تم تغيير كلمة المرور بنجاح" });
+      toast({ title: "تم! ✅", description: "تم تغيير كلمة المرور بنجاح" });
       setTimeout(() => navigate("/auth"), 3000);
     } catch (err: any) {
       setError(err.message);
@@ -76,6 +73,10 @@ const ResetPassword = () => {
       </div>
 
       <div className="relative z-10 w-full max-w-md">
+        <button onClick={() => navigate("/auth")} className="mb-6 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="h-4 w-4" /> العودة لتسجيل الدخول
+        </button>
+
         <div className="glass rounded-2xl p-8">
           <div className="mb-8 text-center">
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-primary shadow-glow">
