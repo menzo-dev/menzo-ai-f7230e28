@@ -8,7 +8,7 @@ import {
   Send, Plus, Bot, User, LogOut, Trash2, Image, Search,
   Menu, X, MessageSquare, Sparkles, ChevronDown, GraduationCap,
   Mic, MicOff, Paperclip, Edit3, Copy, Check, RotateCcw,
-  Bell, Users as UsersIcon, Shield
+  Users as UsersIcon, Shield, Square, Settings
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -108,7 +108,7 @@ const SUGGESTIONS = [
 ];
 
 const Chat = () => {
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, role, signOut } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -133,6 +133,7 @@ const Chat = () => {
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [editingConvId, setEditingConvId] = useState<string | null>(null);
   const [editingConvTitle, setEditingConvTitle] = useState("");
+  const abortControllerRef = useRef<AbortController | null>(null);
   const messagesEnd = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null);
@@ -182,42 +183,41 @@ const Chat = () => {
     loadConversations();
   };
 
-  const sendMessage = async (overrideInput?: string) => {
-    const text = overrideInput || input.trim();
-    if (!text || isLoading) return;
-    const userMsg: Message = { role: "user", content: text };
-    const newMsgs = [...messages, userMsg];
-    setMessages(newMsgs);
-    setInput("");
-    setIsLoading(true);
+  const stopGeneration = () => {
+    abortControllerRef.current?.abort();
+    setIsLoading(false);
+  };
+
+  const streamChat = async (msgs: Message[]) => {
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+    
+    const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+    const resp = await fetch(CHAT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
+      body: JSON.stringify({
+        messages: msgs.map(m => ({ role: m.role, content: m.content })),
+        model: selectedModel,
+        userName: profile?.display_name,
+        userBio: profile?.bio,
+      }),
+      signal: controller.signal,
+    });
+
+    if (!resp.ok) {
+      const errData = await resp.json().catch(() => ({}));
+      throw new Error(errData.error || "فشل الاتصال بالخادم");
+    }
+    if (!resp.body) throw new Error("No response body");
+
+    const reader = resp.body.getReader();
+    const decoder = new TextDecoder();
+    let textBuffer = "";
+    let assistantSoFar = "";
 
     try {
-      const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
-      const resp = await fetch(CHAT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({
-          messages: newMsgs.map(m => ({ role: m.role, content: m.content })),
-          model: selectedModel,
-          userName: profile?.display_name,
-          userBio: (profile as any)?.bio,
-        }),
-      });
-
-      if (!resp.ok) {
-        const errData = await resp.json().catch(() => ({}));
-        throw new Error(errData.error || "فشل الاتصال بالخادم");
-      }
-
-      if (!resp.body) throw new Error("No response body");
-
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let textBuffer = "";
-      let assistantSoFar = "";
-      let streamDone = false;
-
-      while (!streamDone) {
+      while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         textBuffer += decoder.decode(value, { stream: true });
@@ -229,13 +229,13 @@ const Chat = () => {
           if (line.startsWith(":") || line.trim() === "") continue;
           if (!line.startsWith("data: ")) continue;
           const jsonStr = line.slice(6).trim();
-          if (jsonStr === "[DONE]") { streamDone = true; break; }
+          if (jsonStr === "[DONE]") break;
           try {
             const parsed = JSON.parse(jsonStr);
             const content = parsed.choices?.[0]?.delta?.content;
             if (content) {
               assistantSoFar += content;
-              setMessages((prev) => {
+              setMessages(prev => {
                 const last = prev[prev.length - 1];
                 if (last?.role === "assistant") return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
                 return [...prev, { role: "assistant", content: assistantSoFar }];
@@ -244,12 +244,35 @@ const Chat = () => {
           } catch { textBuffer = line + "\n" + textBuffer; break; }
         }
       }
-
-      const finalMsgs = [...newMsgs, { role: "assistant" as const, content: assistantSoFar }];
-      setMessages(finalMsgs);
-      await saveConversation(finalMsgs);
     } catch (err: any) {
-      toast({ title: "خطأ", description: err.message, variant: "destructive" });
+      if (err.name === "AbortError") {
+        // User stopped generation — keep what we have
+      } else throw err;
+    }
+
+    return assistantSoFar;
+  };
+
+  const sendMessage = async (overrideInput?: string) => {
+    const text = overrideInput || input.trim();
+    if (!text || isLoading) return;
+    const userMsg: Message = { role: "user", content: text };
+    const newMsgs = [...messages, userMsg];
+    setMessages(newMsgs);
+    setInput("");
+    setIsLoading(true);
+
+    try {
+      const assistantText = await streamChat(newMsgs);
+      if (assistantText) {
+        const finalMsgs = [...newMsgs, { role: "assistant" as const, content: assistantText }];
+        setMessages(finalMsgs);
+        await saveConversation(finalMsgs);
+      }
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        toast({ title: "خطأ", description: err.message, variant: "destructive" });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -257,62 +280,22 @@ const Chat = () => {
 
   const regenerateResponse = async () => {
     if (messages.length < 2) return;
-    // Remove last assistant message and re-send
     const withoutLast = messages.slice(0, -1);
     setMessages(withoutLast);
     const lastUserMsg = withoutLast[withoutLast.length - 1];
-    if (lastUserMsg?.role === "user") {
-      setIsLoading(true);
-      try {
-        const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
-        const resp = await fetch(CHAT_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-          body: JSON.stringify({
-            messages: withoutLast.map(m => ({ role: m.role, content: m.content })),
-            model: selectedModel,
-            userName: profile?.display_name,
-            userBio: (profile as any)?.bio,
-          }),
-        });
-        if (!resp.ok) throw new Error("فشل إعادة الإجابة");
-        const reader = resp.body!.getReader();
-        const decoder = new TextDecoder();
-        let textBuffer = "";
-        let assistantSoFar = "";
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          textBuffer += decoder.decode(value, { stream: true });
-          let newlineIndex: number;
-          while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
-            let line = textBuffer.slice(0, newlineIndex);
-            textBuffer = textBuffer.slice(newlineIndex + 1);
-            if (line.endsWith("\r")) line = line.slice(0, -1);
-            if (!line.startsWith("data: ")) continue;
-            const jsonStr = line.slice(6).trim();
-            if (jsonStr === "[DONE]") break;
-            try {
-              const parsed = JSON.parse(jsonStr);
-              const content = parsed.choices?.[0]?.delta?.content;
-              if (content) {
-                assistantSoFar += content;
-                setMessages(prev => {
-                  const last = prev[prev.length - 1];
-                  if (last?.role === "assistant") return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
-                  return [...prev, { role: "assistant", content: assistantSoFar }];
-                });
-              }
-            } catch { break; }
-          }
-        }
-        const finalMsgs = [...withoutLast, { role: "assistant" as const, content: assistantSoFar }];
+    if (lastUserMsg?.role !== "user") return;
+    
+    setIsLoading(true);
+    try {
+      const assistantText = await streamChat(withoutLast);
+      if (assistantText) {
+        const finalMsgs = [...withoutLast, { role: "assistant" as const, content: assistantText }];
         setMessages(finalMsgs);
         await saveConversation(finalMsgs);
-      } catch (err: any) {
-        toast({ title: "خطأ", description: err.message, variant: "destructive" });
-      } finally { setIsLoading(false); }
-    }
+      }
+    } catch (err: any) {
+      if (err.name !== "AbortError") toast({ title: "خطأ", description: err.message, variant: "destructive" });
+    } finally { setIsLoading(false); }
   };
 
   const editMessage = (idx: number) => {
@@ -323,54 +306,22 @@ const Chat = () => {
 
   const submitEditMessage = async () => {
     if (editingMsgIdx === null || !editText.trim()) return;
-    // Truncate messages to edited point, re-send
     const truncated = messages.slice(0, editingMsgIdx);
     truncated.push({ role: "user", content: editText.trim() });
     setMessages(truncated);
     setEditingMsgIdx(null);
     setEditText("");
-    // Re-send from that point
     setIsLoading(true);
     try {
-      const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
-      const resp = await fetch(CHAT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({
-          messages: truncated.map(m => ({ role: m.role, content: m.content })),
-          model: selectedModel,
-          userName: profile?.display_name,
-        }),
-      });
-      if (!resp.ok) throw new Error("فشل");
-      const reader = resp.body!.getReader();
-      const decoder = new TextDecoder();
-      let textBuffer = "";
-      let assistantSoFar = "";
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        textBuffer += decoder.decode(value, { stream: true });
-        let ni: number;
-        while ((ni = textBuffer.indexOf("\n")) !== -1) {
-          let line = textBuffer.slice(0, ni);
-          textBuffer = textBuffer.slice(ni + 1);
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          if (!line.startsWith("data: ")) continue;
-          const js = line.slice(6).trim();
-          if (js === "[DONE]") break;
-          try {
-            const p = JSON.parse(js);
-            const c = p.choices?.[0]?.delta?.content;
-            if (c) { assistantSoFar += c; setMessages(prev => { const l = prev[prev.length - 1]; if (l?.role === "assistant") return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m); return [...prev, { role: "assistant", content: assistantSoFar }]; }); }
-          } catch { break; }
-        }
+      const assistantText = await streamChat(truncated);
+      if (assistantText) {
+        const final2 = [...truncated, { role: "assistant" as const, content: assistantText }];
+        setMessages(final2);
+        await saveConversation(final2);
       }
-      const final2 = [...truncated, { role: "assistant" as const, content: assistantSoFar }];
-      setMessages(final2);
-      await saveConversation(final2);
-    } catch (err: any) { toast({ title: "خطأ", description: err.message, variant: "destructive" }); }
-    finally { setIsLoading(false); }
+    } catch (err: any) {
+      if (err.name !== "AbortError") toast({ title: "خطأ", description: err.message, variant: "destructive" });
+    } finally { setIsLoading(false); }
   };
 
   const copyText = (text: string, idx: number) => {
@@ -461,20 +412,16 @@ const Chat = () => {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
     if (file.type.startsWith("image/")) {
       const reader = new FileReader();
       reader.onload = (ev) => {
-        const dataUrl = ev.target?.result as string;
-        setUploadedFile({ name: file.name, type: "image", preview: dataUrl });
+        setUploadedFile({ name: file.name, type: "image", preview: ev.target?.result as string });
       };
       reader.readAsDataURL(file);
     } else {
-      // Text-based files - read content and show as attached
       const text = await file.text().catch(() => null);
       if (text) {
-        const content = text.slice(0, 8000);
-        setUploadedFile({ name: file.name, type: "text", preview: content });
+        setUploadedFile({ name: file.name, type: "text", preview: text.slice(0, 8000) });
       } else {
         toast({ title: "غير مدعوم", description: "هذا النوع من الملفات غير مدعوم حالياً", variant: "destructive" });
       }
@@ -508,69 +455,20 @@ const Chat = () => {
     setIsLoading(true);
 
     try {
-      const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
-      const resp = await fetch(CHAT_URL, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({
-          messages: newMsgs.map(m => ({ role: m.role, content: m.content })),
-          model: selectedModel,
-          userName: profile?.display_name,
-          userBio: profile?.bio,
-        }),
-      });
-
-      if (!resp.ok) {
-        const errData = await resp.json().catch(() => ({}));
-        throw new Error(errData.error || "فشل الاتصال بالخادم");
+      const assistantText = await streamChat(newMsgs);
+      if (assistantText) {
+        const finalMsgs = [...newMsgs, { role: "assistant" as const, content: assistantText }];
+        setMessages(finalMsgs);
+        await saveConversation(finalMsgs);
       }
-      if (!resp.body) throw new Error("No response body");
-
-      const reader = resp.body.getReader();
-      const decoder = new TextDecoder();
-      let textBuffer = "";
-      let assistantSoFar = "";
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        textBuffer += decoder.decode(value, { stream: true });
-        let newlineIndex: number;
-        while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
-          let line = textBuffer.slice(0, newlineIndex);
-          textBuffer = textBuffer.slice(newlineIndex + 1);
-          if (line.endsWith("\r")) line = line.slice(0, -1);
-          if (line.startsWith(":") || line.trim() === "") continue;
-          if (!line.startsWith("data: ")) continue;
-          const jsonStr = line.slice(6).trim();
-          if (jsonStr === "[DONE]") break;
-          try {
-            const parsed = JSON.parse(jsonStr);
-            const content = parsed.choices?.[0]?.delta?.content;
-            if (content) {
-              assistantSoFar += content;
-              setMessages((prev) => {
-                const last = prev[prev.length - 1];
-                if (last?.role === "assistant") return prev.map((m, i) => i === prev.length - 1 ? { ...m, content: assistantSoFar } : m);
-                return [...prev, { role: "assistant", content: assistantSoFar }];
-              });
-            }
-          } catch { textBuffer = line + "\n" + textBuffer; break; }
-        }
-      }
-
-      const finalMsgs = [...newMsgs, { role: "assistant" as const, content: assistantSoFar }];
-      setMessages(finalMsgs);
-      await saveConversation(finalMsgs);
     } catch (err: any) {
-      toast({ title: "خطأ", description: err.message, variant: "destructive" });
-    } finally {
-      setIsLoading(false);
-    }
+      if (err.name !== "AbortError") toast({ title: "خطأ", description: err.message, variant: "destructive" });
+    } finally { setIsLoading(false); }
   };
 
   const avatarUrl = profile?.avatar_url;
   const displayName = profile?.display_name || "مستخدم";
+  const isAdmin = role === "admin";
 
   return (
     <div className="flex h-screen bg-background">
@@ -627,6 +525,12 @@ const Chat = () => {
               <UsersIcon className="h-5 w-5 text-primary" />
               <span className="text-sm">منتدى الطلاب</span>
             </button>
+            {isAdmin && (
+              <button onClick={() => navigate("/admin")} className="flex items-center gap-3 w-full rounded-xl px-3 py-2.5 hover:bg-secondary/60 transition-colors text-foreground">
+                <Shield className="h-5 w-5 text-destructive" />
+                <span className="text-sm">لوحة الإدارة</span>
+              </button>
+            )}
             <button onClick={() => navigate("/profile")} className="flex items-center gap-3 w-full rounded-xl px-3 py-2.5 hover:bg-secondary/60 transition-colors">
               {avatarUrl ? (
                 <img src={avatarUrl} alt="" className="h-8 w-8 rounded-full object-cover border border-primary/30" />
@@ -666,22 +570,25 @@ const Chat = () => {
               <ChevronDown className="mr-2 h-4 w-4" />
             </Button>
             {showModelPicker && (
-              <div className="absolute left-0 top-full mt-2 w-80 max-h-[70vh] overflow-y-auto rounded-xl glass-strong border border-border/60 p-2 z-50 scrollbar-hide">
-                {MODEL_CATEGORIES.map((cat) => (
-                  <div key={cat.label}>
-                    <div className="text-xs font-bold text-muted-foreground px-3 py-2 text-glow-purple">{cat.label}</div>
-                    {cat.models.map((m) => (
-                      <button key={m.id} onClick={() => { setSelectedModel(m.id); setShowModelPicker(false); }}
-                        className={`w-full text-right rounded-lg px-3 py-2 text-sm transition-all ${
-                          selectedModel === m.id ? "bg-primary/15 text-primary border border-primary/20" : "text-foreground hover:bg-secondary/60"
-                        }`}>
-                        <div className="font-medium">{m.label}</div>
-                        <div className="text-xs text-muted-foreground">{m.desc}</div>
-                      </button>
-                    ))}
-                  </div>
-                ))}
-              </div>
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowModelPicker(false)} />
+                <div className="absolute left-0 top-full mt-2 w-80 max-h-[70vh] overflow-y-auto rounded-xl glass-strong border border-border/60 p-2 z-50 scrollbar-hide">
+                  {MODEL_CATEGORIES.map((cat) => (
+                    <div key={cat.label}>
+                      <div className="text-xs font-bold text-muted-foreground px-3 py-2 text-glow-purple">{cat.label}</div>
+                      {cat.models.map((m) => (
+                        <button key={m.id} onClick={() => { setSelectedModel(m.id); setShowModelPicker(false); }}
+                          className={`w-full text-right rounded-lg px-3 py-2 text-sm transition-all ${
+                            selectedModel === m.id ? "bg-primary/15 text-primary border border-primary/20" : "text-foreground hover:bg-secondary/60"
+                          }`}>
+                          <div className="font-medium">{m.label}</div>
+                          <div className="text-xs text-muted-foreground">{m.desc}</div>
+                        </button>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -699,7 +606,6 @@ const Chat = () => {
               <p className="text-muted-foreground max-w-md text-sm mb-8">
                 كيف يمكنني مساعدتك اليوم؟ اسأل عن أي مادة أزهرية أو علمية
               </p>
-              {/* Suggestions */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
                 {SUGGESTIONS.slice(0, 4).map((s, i) => (
                   <button key={i} onClick={() => sendMessage(s)}
@@ -750,7 +656,6 @@ const Chat = () => {
                         </div>
                       </>
                     )}
-                    {/* Action buttons */}
                     {editingMsgIdx !== i && (
                       <div className={`flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                         {msg.role === "user" && (
@@ -847,7 +752,6 @@ const Chat = () => {
         {/* Input */}
         <div className="border-t border-border/40 p-4">
           <div className="max-w-3xl mx-auto">
-            {/* File preview */}
             {uploadedFile && (
               <div className="mb-2 flex items-center gap-2 rounded-xl bg-secondary/60 border border-border/30 px-3 py-2">
                 {uploadedFile.type === "image" && uploadedFile.preview && (
@@ -868,20 +772,23 @@ const Chat = () => {
                   <Plus className="h-5 w-5" />
                 </Button>
                 {showPlus && (
-                  <div className="absolute bottom-full right-0 mb-2 w-52 rounded-xl glass-strong border border-border/40 p-2 z-50">
-                    <button onClick={() => { setShowPlus(false); setShowImageGen(true); }}
-                      className="flex items-center gap-2 w-full rounded-lg px-3 py-2.5 text-sm text-foreground hover:bg-secondary/60 transition-colors">
-                      <Image className="h-4 w-4 text-accent" /> توليد صورة
-                    </button>
-                    <button onClick={() => { setShowPlus(false); setShowSearch(true); }}
-                      className="flex items-center gap-2 w-full rounded-lg px-3 py-2.5 text-sm text-foreground hover:bg-secondary/60 transition-colors">
-                      <Search className="h-4 w-4 text-primary" /> بحث في الإنترنت
-                    </button>
-                    <button onClick={() => { setShowPlus(false); fileInputRef.current?.click(); }}
-                      className="flex items-center gap-2 w-full rounded-lg px-3 py-2.5 text-sm text-foreground hover:bg-secondary/60 transition-colors">
-                      <Paperclip className="h-4 w-4 text-muted-foreground" /> رفع ملف أو صورة
-                    </button>
-                  </div>
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowPlus(false)} />
+                    <div className="absolute bottom-full right-0 mb-2 w-52 rounded-xl glass-strong border border-border/40 p-2 z-50">
+                      <button onClick={() => { setShowPlus(false); setShowImageGen(true); }}
+                        className="flex items-center gap-2 w-full rounded-lg px-3 py-2.5 text-sm text-foreground hover:bg-secondary/60 transition-colors">
+                        <Image className="h-4 w-4 text-accent" /> توليد صورة
+                      </button>
+                      <button onClick={() => { setShowPlus(false); setShowSearch(true); }}
+                        className="flex items-center gap-2 w-full rounded-lg px-3 py-2.5 text-sm text-foreground hover:bg-secondary/60 transition-colors">
+                        <Search className="h-4 w-4 text-primary" /> بحث في الإنترنت
+                      </button>
+                      <button onClick={() => { setShowPlus(false); fileInputRef.current?.click(); }}
+                        className="flex items-center gap-2 w-full rounded-lg px-3 py-2.5 text-sm text-foreground hover:bg-secondary/60 transition-colors">
+                        <Paperclip className="h-4 w-4 text-muted-foreground" /> رفع ملف أو صورة
+                      </button>
+                    </div>
+                  </>
                 )}
               </div>
               <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.txt,.pdf,.md,.csv,.json,.doc,.docx" onChange={handleFileUpload} />
@@ -893,10 +800,17 @@ const Chat = () => {
                 className={`shrink-0 ${isRecording ? "text-destructive animate-pulse" : "text-muted-foreground hover:text-primary"}`}>
                 {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
               </Button>
-              <Button onClick={() => uploadedFile ? sendWithFile() : sendMessage()} disabled={(!input.trim() && !uploadedFile) || isLoading} size="icon"
-                className="bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 shrink-0 rounded-xl shadow-glow">
-                <Send className="h-4 w-4" />
-              </Button>
+              {isLoading ? (
+                <Button onClick={stopGeneration} size="icon"
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90 shrink-0 rounded-xl">
+                  <Square className="h-4 w-4" />
+                </Button>
+              ) : (
+                <Button onClick={() => uploadedFile ? sendWithFile() : sendMessage()} disabled={!input.trim() && !uploadedFile} size="icon"
+                  className="bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 shrink-0 rounded-xl shadow-glow">
+                  <Send className="h-4 w-4" />
+                </Button>
+              )}
             </div>
             <p className="text-center text-[10px] text-muted-foreground mt-2">
               MENZO-AI — معلمك الذكي للأزهر الشريف | {ALL_MODELS.find(m => m.id === selectedModel)?.label}
@@ -905,7 +819,6 @@ const Chat = () => {
         </div>
       </div>
 
-      {/* Overlay for mobile sidebar */}
       {sidebarOpen && (
         <div className="fixed inset-0 bg-background/60 backdrop-blur-sm z-30 md:hidden" onClick={() => setSidebarOpen(false)} />
       )}

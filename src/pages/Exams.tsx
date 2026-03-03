@@ -40,7 +40,7 @@ const DIFFICULTIES = [
 type ExamStage = "select" | "config" | "exam" | "results";
 
 const Exams = () => {
-  const { profile } = useAuth();
+  const { user, profile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -49,7 +49,7 @@ const Exams = () => {
   const [questionCount, setQuestionCount] = useState(10);
   const [customCount, setCustomCount] = useState("");
   const [timeLimit, setTimeLimit] = useState(15);
-  const [difficulty, setDifficulty] = useState(0); // 0 = all
+  const [difficulty, setDifficulty] = useState(0);
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQ, setCurrentQ] = useState(0);
@@ -58,12 +58,38 @@ const Exams = () => {
   const [examLoading, setExamLoading] = useState(false);
   const [examFinished, setExamFinished] = useState(false);
 
+  const finishExam = useCallback(async () => {
+    if (examFinished) return;
+    setExamFinished(true);
+    setStage("results");
+    
+    // Save results
+    if (user && questions.length > 0) {
+      const s = questions.reduce((acc, q, i) => acc + (answers[i] === q.answer ? 1 : 0), 0);
+      const pct = Math.round((s / questions.length) * 100);
+      const subjectLabel = SUBJECTS.find(sub => sub.id === selectedSubject)?.label || selectedSubject || "";
+      try {
+        await supabase.from("exam_results").insert({
+          user_id: user.id,
+          subject: subjectLabel,
+          score: s,
+          total: questions.length,
+          percentage: pct,
+          difficulty: difficulty,
+          questions: questions as any,
+          answers: answers as any,
+          title: `اختبار ${subjectLabel}`,
+        });
+      } catch {}
+    }
+  }, [examFinished, user, questions, answers, selectedSubject, difficulty]);
+
   useEffect(() => {
     if (stage !== "exam" || examFinished) return;
     if (timeLeft <= 0) { finishExam(); return; }
     const t = setTimeout(() => setTimeLeft((p) => p - 1), 1000);
     return () => clearTimeout(t);
-  }, [timeLeft, stage, examFinished]);
+  }, [timeLeft, stage, examFinished, finishExam]);
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
@@ -89,91 +115,84 @@ const Exams = () => {
     setExamLoading(true);
 
     try {
-      // Try to load from DB first
-      let query = supabase.from("questions").select("id, q_text, choices, answer, difficulty");
-      if (difficulty > 0) query = query.eq("difficulty", difficulty);
-      const { data: dbQuestions } = await query.limit(count);
-
-      if (dbQuestions && dbQuestions.length >= count) {
-        const shuffled = dbQuestions.sort(() => Math.random() - 0.5).slice(0, count);
-        setQuestions(shuffled.map(q => ({ ...q, choices: Array.isArray(q.choices) ? q.choices as string[] : [] })));
-      } else {
-        // Generate via AI
-        const subjectLabel = SUBJECTS.find(s => s.id === selectedSubject)?.label || selectedSubject;
-        const diffLabel = difficulty > 0 ? DIFFICULTIES.find(d => d.id === difficulty)?.label : "متنوعة";
-        
-        const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({
-            messages: [{
-              role: "user",
-              content: `أنشئ ${count} أسئلة اختيار من متعدد في مادة "${subjectLabel}" للصف الثالث الثانوي الأزهري. مستوى الصعوبة: ${diffLabel}.
-أعد النتيجة كـ JSON array فقط بدون أي نص إضافي أو markdown. كل سؤال يحتوي على:
-- "q_text": نص السؤال (واضح ومحدد)
+      const subjectLabel = SUBJECTS.find(s => s.id === selectedSubject)?.label || selectedSubject;
+      const diffLabel = difficulty > 0 ? DIFFICULTIES.find(d => d.id === difficulty)?.label : "متنوعة";
+      
+      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({
+          messages: [{
+            role: "user",
+            content: `أنشئ ${count} أسئلة اختيار من متعدد في مادة "${subjectLabel}" للصف الثالث الثانوي الأزهري. مستوى الصعوبة: ${diffLabel}.
+أعد النتيجة كـ JSON array فقط بدون أي نص إضافي أو markdown أو code blocks. كل سؤال يحتوي على:
+- "q_text": نص السؤال
 - "choices": مصفوفة من 4 اختيارات مختلفة
 - "answer": الإجابة الصحيحة (نفس نص الاختيار بالضبط)
 - "difficulty": ${difficulty || "رقم من 1-3"}
 
-مثال: [{"q_text":"ما حكم صلاة الجمعة؟","choices":["فرض عين","فرض كفاية","سنة مؤكدة","مستحب"],"answer":"فرض عين","difficulty":1}]`
-            }],
-            model: "google/gemini-3-flash-preview",
-          }),
-        });
+مثال: [{"q_text":"ما حكم صلاة الجمعة؟","choices":["فرض عين","فرض كفاية","سنة مؤكدة","مستحب"],"answer":"فرض عين","difficulty":1}]
 
-        if (!resp.ok) throw new Error("فشل في توليد الأسئلة");
+أعد JSON array فقط، بدون أي نص قبله أو بعده.`
+          }],
+          model: "google/gemini-2.5-flash",
+        }),
+      });
 
-        const reader = resp.body!.getReader();
-        const decoder = new TextDecoder();
-        let fullText = "";
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const chunk = decoder.decode(value, { stream: true });
-          const lines = chunk.split("\n");
-          for (const line of lines) {
-            if (!line.startsWith("data: ")) continue;
-            const jsonStr = line.slice(6).trim();
-            if (jsonStr === "[DONE]") continue;
-            try {
-              const parsed = JSON.parse(jsonStr);
-              const content = parsed.choices?.[0]?.delta?.content;
-              if (content) fullText += content;
-            } catch {}
-          }
+      if (!resp.ok) throw new Error("فشل في توليد الأسئلة");
+
+      const reader = resp.body!.getReader();
+      const decoder = new TextDecoder();
+      let fullText = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        const lines = chunk.split("\n");
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const jsonStr = line.slice(6).trim();
+          if (jsonStr === "[DONE]") continue;
+          try {
+            const parsed = JSON.parse(jsonStr);
+            const content = parsed.choices?.[0]?.delta?.content;
+            if (content) fullText += content;
+          } catch {}
         }
-
-        const jsonMatch = fullText.match(/\[[\s\S]*\]/);
-        if (!jsonMatch) throw new Error("لم يتم إنشاء أسئلة صالحة. حاول مرة أخرى.");
-        
-        let parsedQuestions: Question[];
-        try {
-          parsedQuestions = JSON.parse(jsonMatch[0]);
-        } catch {
-          throw new Error("خطأ في تحليل الأسئلة. حاول مرة أخرى.");
-        }
-
-        if (!Array.isArray(parsedQuestions) || parsedQuestions.length === 0) {
-          throw new Error("لم يتم إنشاء أسئلة. حاول مرة أخرى.");
-        }
-
-        // Validate questions
-        const validQuestions = parsedQuestions.filter(q => 
-          q.q_text && Array.isArray(q.choices) && q.choices.length >= 2 && q.answer
-        );
-        
-        if (validQuestions.length === 0) throw new Error("الأسئلة غير صالحة. حاول مرة أخرى.");
-
-        setQuestions(validQuestions.map((q, i) => ({
-          ...q,
-          id: `ai-${i}`,
-          choices: q.choices.slice(0, 4),
-          difficulty: q.difficulty || 1,
-        })));
       }
+
+      // Clean up the response - remove markdown code blocks
+      let cleanText = fullText.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+      
+      const jsonMatch = cleanText.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) throw new Error("لم يتم إنشاء أسئلة صالحة. حاول مرة أخرى.");
+      
+      let parsedQuestions: Question[];
+      try {
+        parsedQuestions = JSON.parse(jsonMatch[0]);
+      } catch {
+        throw new Error("خطأ في تحليل الأسئلة. حاول مرة أخرى.");
+      }
+
+      if (!Array.isArray(parsedQuestions) || parsedQuestions.length === 0) {
+        throw new Error("لم يتم إنشاء أسئلة. حاول مرة أخرى.");
+      }
+
+      const validQuestions = parsedQuestions.filter(q => 
+        q.q_text && Array.isArray(q.choices) && q.choices.length >= 2 && q.answer
+      );
+      
+      if (validQuestions.length === 0) throw new Error("الأسئلة غير صالحة. حاول مرة أخرى.");
+
+      setQuestions(validQuestions.map((q, i) => ({
+        ...q,
+        id: `ai-${i}`,
+        choices: q.choices.slice(0, 4),
+        difficulty: q.difficulty || 1,
+      })));
 
       setTimeLeft(timeLimit * 60);
       setCurrentQ(0);
@@ -186,11 +205,6 @@ const Exams = () => {
       setExamLoading(false);
     }
   };
-
-  const finishExam = useCallback(() => {
-    setExamFinished(true);
-    setStage("results");
-  }, []);
 
   const score = questions.reduce((acc, q, i) => acc + (answers[i] === q.answer ? 1 : 0), 0);
   const percentage = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
@@ -228,7 +242,6 @@ const Exams = () => {
               إعدادات الاختبار — {SUBJECTS.find(s => s.id === selectedSubject)?.label}
             </h2>
             <div className="space-y-5">
-              {/* Question count */}
               <div>
                 <label className="text-sm text-muted-foreground block mb-2">عدد الأسئلة</label>
                 <div className="flex gap-2 mb-2">
@@ -244,7 +257,6 @@ const Exams = () => {
                   className="w-full rounded-xl bg-secondary/50 border border-border/30 px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50" />
               </div>
 
-              {/* Difficulty */}
               <div>
                 <label className="text-sm text-muted-foreground block mb-2">مستوى الصعوبة</label>
                 <div className="flex gap-2">
@@ -263,7 +275,6 @@ const Exams = () => {
                 </div>
               </div>
 
-              {/* Time */}
               <div>
                 <label className="text-sm text-muted-foreground block mb-2">الوقت (دقائق)</label>
                 <div className="flex gap-2">
@@ -367,12 +378,12 @@ const Exams = () => {
                   <div key={i} className={`rounded-xl p-4 border ${isCorrect ? "border-primary/30 bg-primary/5" : "border-destructive/30 bg-destructive/5"}`}>
                     <div className="flex items-start gap-2 mb-2">
                       {isCorrect ? <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-0.5" /> : <XCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />}
-                      <span className="text-sm font-medium text-foreground">{q.q_text}</span>
+                      <p className="text-sm text-foreground font-medium">{q.q_text}</p>
                     </div>
                     {!isCorrect && (
-                      <div className="mr-7 text-xs space-y-1">
-                        <div className="text-destructive">إجابتك: {answers[i] || "لم تُجب"}</div>
-                        <div className="text-primary">الإجابة الصحيحة: {q.answer}</div>
+                      <div className="mr-7 space-y-1">
+                        {answers[i] && <p className="text-xs text-destructive">إجابتك: {answers[i]}</p>}
+                        <p className="text-xs text-primary">الإجابة الصحيحة: {q.answer}</p>
                       </div>
                     )}
                   </div>
@@ -380,11 +391,13 @@ const Exams = () => {
               })}
             </div>
 
-            <div className="flex gap-3 mt-8 justify-center">
-              <Button onClick={() => setStage("select")} variant="outline" className="border-border/30">
+            <div className="flex gap-3 mt-8">
+              <Button onClick={() => { setStage("config"); setExamFinished(false); }} className="flex-1 bg-primary text-primary-foreground">
                 <RotateCcw className="ml-2 h-4 w-4" /> اختبار جديد
               </Button>
-              <Button onClick={() => navigate("/chat")} className="bg-primary text-primary-foreground">العودة للمحادثة</Button>
+              <Button variant="outline" onClick={() => setStage("select")} className="flex-1 border-border/30">
+                اختر مادة أخرى
+              </Button>
             </div>
           </div>
         )}
