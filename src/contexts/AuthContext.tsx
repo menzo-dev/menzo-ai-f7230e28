@@ -7,8 +7,11 @@ interface Profile {
   avatar_url: string | null;
   bio: string | null;
   phone: string | null;
+  phone_parent: string | null;
   division: string | null;
   azhar_class: string | null;
+  gender: string | null;
+  is_banned: boolean;
 }
 
 interface AuthContextType {
@@ -65,10 +68,10 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   const fetchProfile = async (userId: string) => {
     const [profileRes, roleRes] = await Promise.all([
-      supabase.from("profiles").select("display_name, avatar_url, bio, phone, division, azhar_class").eq("id", userId).single(),
+      supabase.from("profiles").select("display_name, avatar_url, bio, phone, phone_parent, division, azhar_class, gender, is_banned").eq("id", userId).single(),
       supabase.from("user_roles").select("role").eq("user_id", userId).single(),
     ]);
-    if (profileRes.data) setProfile(profileRes.data);
+    if (profileRes.data) setProfile(profileRes.data as any);
     if (roleRes.data) setRole(roleRes.data.role);
   };
 
