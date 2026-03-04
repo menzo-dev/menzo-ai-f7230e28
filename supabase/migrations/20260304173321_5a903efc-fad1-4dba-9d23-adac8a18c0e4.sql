@@ -1,0 +1,5 @@
+
+ALTER TABLE public.profiles 
+ADD COLUMN IF NOT EXISTS gender text DEFAULT NULL,
+ADD COLUMN IF NOT EXISTS phone_parent text DEFAULT NULL,
+ADD COLUMN IF NOT EXISTS is_banned boolean DEFAULT false;
