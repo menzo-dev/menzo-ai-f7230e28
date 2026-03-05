@@ -138,22 +138,24 @@ const Exams = () => {
       const subjectLabel = allSubjects.find(s => s.id === selectedSubject)?.label || selectedSubject;
       const diffLabel = difficulty > 0 ? DIFFICULTIES.find(d => d.id === difficulty)?.label : "متنوعة";
       
+      const descriptionPart = examDescription.trim() ? `\nملاحظة: ${examDescription.trim()}` : "";
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
         body: JSON.stringify({
           messages: [{
             role: "user",
-            content: `أنشئ ${count} أسئلة اختيار من متعدد في مادة "${subjectLabel}" للصف الثالث الثانوي الأزهري. مستوى الصعوبة: ${diffLabel}.
-أعد النتيجة كـ JSON array فقط بدون أي نص إضافي أو markdown أو code blocks. كل سؤال يحتوي على:
-- "q_text": نص السؤال
+            content: `أنشئ ${count} أسئلة اختيار من متعدد في مادة "${subjectLabel}" للصف الثالث الثانوي الأزهري. مستوى الصعوبة: ${diffLabel}.${descriptionPart}
+
+أعد النتيجة كـ JSON array فقط بدون أي نص إضافي أو markdown أو code blocks أو أي حروف تحكم. كل سؤال يحتوي على:
+- "q_text": نص السؤال (نص عادي بدون أي رموز تحكم)
 - "choices": مصفوفة من 4 اختيارات مختلفة
 - "answer": الإجابة الصحيحة (نفس نص الاختيار بالضبط)
 - "difficulty": ${difficulty || "رقم من 1-3"}
 
 مثال: [{"q_text":"ما حكم صلاة الجمعة؟","choices":["فرض عين","فرض كفاية","سنة مؤكدة","مستحب"],"answer":"فرض عين","difficulty":1}]
 
-أعد JSON array فقط، بدون أي نص قبله أو بعده.`
+أعد JSON array فقط، بدون أي نص قبله أو بعده. لا تضع أي control characters أو line breaks داخل النصوص.`
           }],
           model: selectedModel,
         }),

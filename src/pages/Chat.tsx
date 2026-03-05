@@ -571,8 +571,8 @@ const Chat = () => {
             </Button>
             {showModelPicker && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowModelPicker(false)} />
-                <div className="absolute left-0 top-full mt-2 w-80 max-h-[70vh] overflow-y-auto rounded-xl glass-strong border border-border/60 p-2 z-50 scrollbar-hide">
+                <div className="fixed inset-0 z-[60]" onClick={() => setShowModelPicker(false)} />
+                <div className="absolute left-0 top-full mt-2 w-80 max-h-[70vh] overflow-y-auto rounded-xl glass-strong border border-border/60 p-2 z-[70] scrollbar-hide">
                   {MODEL_CATEGORIES.map((cat) => (
                     <div key={cat.label}>
                       <div className="text-xs font-bold text-muted-foreground px-3 py-2 text-glow-purple">{cat.label}</div>
