@@ -21,6 +21,9 @@ function getProviderConfig(model: string) {
   if (model.startsWith("openrouter/")) {
     return { url: "https://openrouter.ai/api/v1/chat/completions", key: Deno.env.get("OPENROUTER_API_KEY")!, model: model.replace("openrouter/", "") };
   }
+  if (model.startsWith("qwen/") || model.startsWith("meta/") || model.startsWith("mistral/")) {
+    return { url: "https://openrouter.ai/api/v1/chat/completions", key: Deno.env.get("OPENROUTER_API_KEY")!, model };
+  }
   if (model.startsWith("huggingface/")) {
     return { url: "https://api-inference.huggingface.co/models/" + model.replace("huggingface/", ""), key: Deno.env.get("HUGGINGFACE_API_KEY")!, model: model.replace("huggingface/", ""), isHuggingFace: true };
   }
@@ -157,10 +160,11 @@ serve(async (req) => {
     });
 
     if (!response.ok) {
-      if (response.status === 429) return new Response(JSON.stringify({ error: "تم تجاوز الحد المسموح، حاول لاحقاً" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (response.status === 402) return new Response(JSON.stringify({ error: "يرجى إضافة رصيد للاستمرار" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       const t = await response.text();
       console.error("AI error:", response.status, t);
+      if (response.status === 429) return new Response(JSON.stringify({ error: "تم تجاوز الحد المسموح، حاول لاحقاً" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (response.status === 402) return new Response(JSON.stringify({ error: "يرجى إضافة رصيد للاستمرار" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+      if (response.status === 404) return new Response(JSON.stringify({ error: "هذا النموذج غير متاح حالياً، جرب نموذج آخر" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       return new Response(JSON.stringify({ error: "خطأ في الاتصال بالذكاء الاصطناعي" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
