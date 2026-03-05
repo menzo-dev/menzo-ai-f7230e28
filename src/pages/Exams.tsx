@@ -175,9 +175,22 @@ const Exams = () => {
       }
 
       let cleanText = fullText.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+      // Remove control characters that break JSON parsing
+      cleanText = cleanText.replace(/[\x00-\x1F\x7F]/g, (ch) => ch === '\n' || ch === '\r' || ch === '\t' ? ch : '');
       const jsonMatch = cleanText.match(/\[[\s\S]*\]/);
       if (!jsonMatch) throw new Error("لم يتم إنشاء أسئلة صالحة. حاول مرة أخرى.");
-      const parsedQuestions: Question[] = JSON.parse(jsonMatch[0]);
+      let parsedQuestions: Question[];
+      try {
+        parsedQuestions = JSON.parse(jsonMatch[0]);
+      } catch {
+        // Try fixing common JSON issues
+        const fixed = jsonMatch[0]
+          .replace(/,\s*]/g, "]")
+          .replace(/,\s*}/g, "}")
+          .replace(/[\x00-\x1F\x7F]/g, "")
+          .replace(/\n/g, " ");
+        parsedQuestions = JSON.parse(fixed);
+      }
       const validQuestions = parsedQuestions.filter(q => q.q_text && Array.isArray(q.choices) && q.choices.length >= 2 && q.answer);
       if (validQuestions.length === 0) throw new Error("الأسئلة غير صالحة. حاول مرة أخرى.");
 
