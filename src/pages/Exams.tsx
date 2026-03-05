@@ -254,6 +254,18 @@ const Exams = () => {
               إعدادات الاختبار — {[...SCIENTIFIC_SUBJECTS, ...LITERARY_SUBJECTS].find(s => s.id === selectedSubject)?.label}
             </h2>
             <div className="space-y-5">
+              {/* Description */}
+              <div>
+                <label className="text-sm text-muted-foreground block mb-2">وصف الاختبار (اختياري)</label>
+                <textarea
+                  placeholder="مثال: أريد أسئلة عن باب الطهارة والصلاة فقط..."
+                  value={examDescription}
+                  onChange={e => setExamDescription(e.target.value)}
+                  rows={2}
+                  className="w-full rounded-xl bg-secondary/50 border border-border/30 px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 resize-none"
+                />
+              </div>
+
               {/* Question count */}
               <div>
                 <label className="text-sm text-muted-foreground block mb-2">عدد الأسئلة</label>
