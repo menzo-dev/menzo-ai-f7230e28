@@ -59,12 +59,12 @@ const Forum = () => {
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [posts]);
 
   const loadPosts = async () => {
-    const { data } = await supabase
+    const query = supabase
       .from("forum_posts")
       .select("*")
-      .eq("forum_type" as any, userGender)
       .order("created_at", { ascending: true })
       .limit(200);
+    const { data } = await (query as any).eq("forum_type", userGender);
     if (!data) return;
     const userIds = [...new Set(data.map(p => p.user_id))];
     if (userIds.length === 0) { setPosts([]); return; }
