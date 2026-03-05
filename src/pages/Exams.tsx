@@ -81,6 +81,7 @@ const Exams = () => {
   const [timeLimit, setTimeLimit] = useState(15);
   const [difficulty, setDifficulty] = useState(0);
   const [selectedModel, setSelectedModel] = useState(AI_MODELS[0].id);
+  const [examDescription, setExamDescription] = useState("");
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQ, setCurrentQ] = useState(0);
