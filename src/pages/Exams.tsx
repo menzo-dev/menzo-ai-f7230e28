@@ -81,6 +81,7 @@ const Exams = () => {
   const [timeLimit, setTimeLimit] = useState(15);
   const [difficulty, setDifficulty] = useState(0);
   const [selectedModel, setSelectedModel] = useState(AI_MODELS[0].id);
+  const [examDescription, setExamDescription] = useState("");
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQ, setCurrentQ] = useState(0);
@@ -137,22 +138,24 @@ const Exams = () => {
       const subjectLabel = allSubjects.find(s => s.id === selectedSubject)?.label || selectedSubject;
       const diffLabel = difficulty > 0 ? DIFFICULTIES.find(d => d.id === difficulty)?.label : "متنوعة";
       
+      const descriptionPart = examDescription.trim() ? `\nملاحظة: ${examDescription.trim()}` : "";
       const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
         body: JSON.stringify({
           messages: [{
             role: "user",
-            content: `أنشئ ${count} أسئلة اختيار من متعدد في مادة "${subjectLabel}" للصف الثالث الثانوي الأزهري. مستوى الصعوبة: ${diffLabel}.
-أعد النتيجة كـ JSON array فقط بدون أي نص إضافي أو markdown أو code blocks. كل سؤال يحتوي على:
-- "q_text": نص السؤال
+            content: `أنشئ ${count} أسئلة اختيار من متعدد في مادة "${subjectLabel}" للصف الثالث الثانوي الأزهري. مستوى الصعوبة: ${diffLabel}.${descriptionPart}
+
+أعد النتيجة كـ JSON array فقط بدون أي نص إضافي أو markdown أو code blocks أو أي حروف تحكم. كل سؤال يحتوي على:
+- "q_text": نص السؤال (نص عادي بدون أي رموز تحكم)
 - "choices": مصفوفة من 4 اختيارات مختلفة
 - "answer": الإجابة الصحيحة (نفس نص الاختيار بالضبط)
 - "difficulty": ${difficulty || "رقم من 1-3"}
 
 مثال: [{"q_text":"ما حكم صلاة الجمعة؟","choices":["فرض عين","فرض كفاية","سنة مؤكدة","مستحب"],"answer":"فرض عين","difficulty":1}]
 
-أعد JSON array فقط، بدون أي نص قبله أو بعده.`
+أعد JSON array فقط، بدون أي نص قبله أو بعده. لا تضع أي control characters أو line breaks داخل النصوص.`
           }],
           model: selectedModel,
         }),
@@ -175,9 +178,22 @@ const Exams = () => {
       }
 
       let cleanText = fullText.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+      // Remove control characters that break JSON parsing
+      cleanText = cleanText.replace(/[\x00-\x1F\x7F]/g, (ch) => ch === '\n' || ch === '\r' || ch === '\t' ? ch : '');
       const jsonMatch = cleanText.match(/\[[\s\S]*\]/);
       if (!jsonMatch) throw new Error("لم يتم إنشاء أسئلة صالحة. حاول مرة أخرى.");
-      const parsedQuestions: Question[] = JSON.parse(jsonMatch[0]);
+      let parsedQuestions: Question[];
+      try {
+        parsedQuestions = JSON.parse(jsonMatch[0]);
+      } catch {
+        // Try fixing common JSON issues
+        const fixed = jsonMatch[0]
+          .replace(/,\s*]/g, "]")
+          .replace(/,\s*}/g, "}")
+          .replace(/[\x00-\x1F\x7F]/g, "")
+          .replace(/\n/g, " ");
+        parsedQuestions = JSON.parse(fixed);
+      }
       const validQuestions = parsedQuestions.filter(q => q.q_text && Array.isArray(q.choices) && q.choices.length >= 2 && q.answer);
       if (validQuestions.length === 0) throw new Error("الأسئلة غير صالحة. حاول مرة أخرى.");
 
@@ -241,6 +257,18 @@ const Exams = () => {
               إعدادات الاختبار — {[...SCIENTIFIC_SUBJECTS, ...LITERARY_SUBJECTS].find(s => s.id === selectedSubject)?.label}
             </h2>
             <div className="space-y-5">
+              {/* Description */}
+              <div>
+                <label className="text-sm text-muted-foreground block mb-2">وصف الاختبار (اختياري)</label>
+                <textarea
+                  placeholder="مثال: أريد أسئلة عن باب الطهارة والصلاة فقط..."
+                  value={examDescription}
+                  onChange={e => setExamDescription(e.target.value)}
+                  rows={2}
+                  className="w-full rounded-xl bg-secondary/50 border border-border/30 px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 resize-none"
+                />
+              </div>
+
               {/* Question count */}
               <div>
                 <label className="text-sm text-muted-foreground block mb-2">عدد الأسئلة</label>
