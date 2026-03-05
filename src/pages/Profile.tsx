@@ -4,15 +4,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Camera, User, Save, Lock, Eye, EyeOff, Trash2, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Camera, User, Save, Lock, Eye, EyeOff, Trash2, AlertTriangle, Phone, BookOpen } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Profile = () => {
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, refreshProfile } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [displayName, setDisplayName] = useState("");
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [phone, setPhone] = useState("");
+  const [phoneParent, setPhoneParent] = useState("");
+  const [division, setDivision] = useState<"scientific" | "literary">("scientific");
+  const [bio, setBio] = useState("");
   const [loading, setLoading] = useState(false);
 
   const [showPasswordSection, setShowPasswordSection] = useState(false);
@@ -29,15 +33,28 @@ const Profile = () => {
     if (profile) {
       setDisplayName(profile.display_name || "");
       setAvatarUrl(profile.avatar_url);
+      setPhone((profile as any).phone || "");
+      setPhoneParent((profile as any).phone_parent || "");
+      setDivision((profile as any).division === "literary" ? "literary" : "scientific");
+      setBio((profile as any).bio || "");
     }
   }, [profile]);
 
   const handleSave = async () => {
     if (!user) return;
     setLoading(true);
-    const { error } = await supabase.from("profiles").update({ display_name: displayName }).eq("id", user.id);
+    const { error } = await supabase.from("profiles").update({
+      display_name: displayName,
+      phone: phone || null,
+      phone_parent: phoneParent || null,
+      division,
+      bio: bio || null,
+    }).eq("id", user.id);
     if (error) toast({ title: "خطأ", description: error.message, variant: "destructive" });
-    else toast({ title: "تم الحفظ", description: "تم تحديث الملف الشخصي" });
+    else {
+      toast({ title: "تم الحفظ", description: "تم تحديث الملف الشخصي" });
+      refreshProfile();
+    }
     setLoading(false);
   };
 
@@ -75,15 +92,11 @@ const Profile = () => {
     if (!user) return;
     setDeleteLoading(true);
     try {
-      // Verify password
       const { error: signInError } = await supabase.auth.signInWithPassword({ email: user.email!, password: deletePassword });
       if (signInError) { toast({ title: "خطأ", description: "كلمة المرور غير صحيحة", variant: "destructive" }); setDeleteLoading(false); return; }
-      
-      // Delete user data
       await supabase.from("conversations").delete().eq("user_id", user.id);
       await supabase.from("user_roles").delete().eq("user_id", user.id);
       await supabase.from("profiles").delete().eq("id", user.id);
-      
       await signOut();
       navigate("/");
       toast({ title: "تم حذف الحساب", description: "تم حذف جميع بياناتك" });
@@ -129,6 +142,45 @@ const Profile = () => {
               <label className="text-sm text-muted-foreground mb-1 block">الاسم</label>
               <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} className="bg-secondary border-border/30 text-foreground" />
             </div>
+            <div>
+              <label className="text-sm text-muted-foreground mb-1 block">النبذة الشخصية</label>
+              <textarea value={bio} onChange={e => setBio(e.target.value)} rows={2} placeholder="اكتب نبذة عنك..."
+                className="w-full rounded-xl bg-secondary border border-border/30 px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary/50 resize-none" />
+            </div>
+
+            {/* Phone */}
+            <div className="relative">
+              <Phone className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
+              <label className="text-sm text-muted-foreground mb-1 block">رقم الهاتف</label>
+              <Input value={phone} onChange={e => setPhone(e.target.value)} placeholder="رقم الهاتف"
+                className="pr-10 bg-secondary border-border/30 text-foreground" />
+            </div>
+
+            {/* Parent Phone */}
+            <div className="relative">
+              <Phone className="absolute right-3 top-3 h-4 w-4 text-muted-foreground" />
+              <label className="text-sm text-muted-foreground mb-1 block">رقم ولي الأمر</label>
+              <Input value={phoneParent} onChange={e => setPhoneParent(e.target.value)} placeholder="رقم ولي الأمر (اختياري)"
+                className="pr-10 bg-secondary border-border/30 text-foreground" />
+            </div>
+
+            {/* Division */}
+            <div>
+              <label className="text-sm text-muted-foreground mb-2 block flex items-center gap-1.5">
+                <BookOpen className="h-4 w-4" /> الشعبة
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" onClick={() => setDivision("scientific")}
+                  className={`rounded-xl py-2.5 text-sm font-bold transition-all border ${division === "scientific" ? "bg-primary/15 text-primary border-primary/40" : "bg-secondary text-foreground border-border/30"}`}>
+                  🔬 علمي
+                </button>
+                <button type="button" onClick={() => setDivision("literary")}
+                  className={`rounded-xl py-2.5 text-sm font-bold transition-all border ${division === "literary" ? "bg-accent/15 text-accent border-accent/40" : "bg-secondary text-foreground border-border/30"}`}>
+                  📚 أدبي
+                </button>
+              </div>
+            </div>
+
             <Button onClick={handleSave} disabled={loading} className="w-full bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow">
               <Save className="ml-2 h-4 w-4" />
               {loading ? "جاري الحفظ..." : "حفظ التغييرات"}

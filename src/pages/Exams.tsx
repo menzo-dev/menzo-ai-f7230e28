@@ -72,9 +72,8 @@ const Exams = () => {
   const { toast } = useToast();
 
   const [stage, setStage] = useState<ExamStage>("select");
-  const [divisionTab, setDivisionTab] = useState<"scientific" | "literary">(
-    (profile as any)?.division === "literary" ? "literary" : "scientific"
-  );
+  const userDivision = (profile as any)?.division === "literary" ? "literary" : "scientific";
+  const [divisionTab, setDivisionTab] = useState<"scientific" | "literary">(userDivision);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [questionCount, setQuestionCount] = useState(10);
   const [customCount, setCustomCount] = useState("");
