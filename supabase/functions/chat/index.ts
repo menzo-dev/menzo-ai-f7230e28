@@ -160,16 +160,19 @@ serve(async (req) => {
       body: JSON.stringify({ model: config.model, messages: allMessages, stream: true }),
     });
 
-    // If model not found (404), fallback to Lovable AI gateway with default model
-    if (!response.ok && response.status === 404) {
-      console.warn(`Model ${config.model} not found (404), falling back to google/gemini-3-flash-preview`);
-      const fallbackKey = Deno.env.get("LOVABLE_API_KEY");
-      if (fallbackKey) {
-        response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-          method: "POST",
-          headers: { Authorization: `Bearer ${fallbackKey}`, "Content-Type": "application/json" },
-          body: JSON.stringify({ model: "google/gemini-3-flash-preview", messages: allMessages, stream: true }),
-        });
+    // If any non-Lovable provider fails, fallback to Lovable AI gateway
+    if (!response.ok) {
+      const isLovableGateway = config.url.includes("ai.gateway.lovable.dev");
+      if (!isLovableGateway) {
+        console.warn(`Provider failed for model ${config.model}: ${response.status}, falling back to Lovable AI`);
+        const fallbackKey = Deno.env.get("LOVABLE_API_KEY");
+        if (fallbackKey) {
+          response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${fallbackKey}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ model: "google/gemini-3-flash-preview", messages: allMessages, stream: true }),
+          });
+        }
       }
     }
 
@@ -178,7 +181,6 @@ serve(async (req) => {
       console.error("AI error:", response.status, t);
       if (response.status === 429) return new Response(JSON.stringify({ error: "تم تجاوز الحد المسموح، حاول لاحقاً" }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       if (response.status === 402) return new Response(JSON.stringify({ error: "يرجى إضافة رصيد للاستمرار" }), { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-      if (response.status === 404) return new Response(JSON.stringify({ error: "هذا النموذج غير متاح حالياً، جرب نموذج آخر" }), { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       return new Response(JSON.stringify({ error: "خطأ في الاتصال بالذكاء الاصطناعي" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
