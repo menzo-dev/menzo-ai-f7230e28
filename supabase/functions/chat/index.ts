@@ -150,14 +150,28 @@ serve(async (req) => {
     }
 
     // Standard OpenAI-compatible
-    const response = await fetch(config.url, {
+    const allMessages = [{ role: "system", content: systemPrompt }, ...messages];
+    let response = await fetch(config.url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${config.key}`, "Content-Type": "application/json",
-        ...(model?.startsWith("openrouter/") ? { "HTTP-Referer": "https://menzo-ai.lovable.app", "X-Title": "MENZO-AI" } : {}),
+        ...(model?.startsWith("openrouter/") || model?.startsWith("qwen/") || model?.startsWith("meta/") || model?.startsWith("mistral/") ? { "HTTP-Referer": "https://menzo-ai.lovable.app", "X-Title": "MENZO-AI" } : {}),
       },
-      body: JSON.stringify({ model: config.model, messages: [{ role: "system", content: systemPrompt }, ...messages], stream: true }),
+      body: JSON.stringify({ model: config.model, messages: allMessages, stream: true }),
     });
+
+    // If model not found (404), fallback to Lovable AI gateway with default model
+    if (!response.ok && response.status === 404) {
+      console.warn(`Model ${config.model} not found (404), falling back to google/gemini-3-flash-preview`);
+      const fallbackKey = Deno.env.get("LOVABLE_API_KEY");
+      if (fallbackKey) {
+        response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${fallbackKey}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ model: "google/gemini-3-flash-preview", messages: allMessages, stream: true }),
+        });
+      }
+    }
 
     if (!response.ok) {
       const t = await response.text();
