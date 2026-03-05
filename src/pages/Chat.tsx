@@ -606,7 +606,7 @@ const Chat = () => {
               <p className="text-muted-foreground max-w-md text-sm mb-8">
                 كيف يمكنني مساعدتك اليوم؟ اسأل عن أي مادة أزهرية أو علمية
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl relative z-0">
                 {SUGGESTIONS.slice(0, 4).map((s, i) => (
                   <button key={i} onClick={() => sendMessage(s)}
                     className="glass rounded-xl px-4 py-3 text-sm text-right text-foreground hover:border-primary/40 hover:bg-primary/5 transition-all">
