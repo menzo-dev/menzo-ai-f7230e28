@@ -525,6 +525,10 @@ const Chat = () => {
               <UsersIcon className="h-5 w-5 text-primary" />
               <span className="text-sm">منتدى الطلاب</span>
             </button>
+            <button onClick={() => navigate("/notifications")} className="flex items-center gap-3 w-full rounded-xl px-3 py-2.5 hover:bg-secondary/60 transition-colors text-foreground">
+              <Sparkles className="h-5 w-5 text-accent" />
+              <span className="text-sm">الإشعارات</span>
+            </button>
             {isAdmin && (
               <button onClick={() => navigate("/admin")} className="flex items-center gap-3 w-full rounded-xl px-3 py-2.5 hover:bg-secondary/60 transition-colors text-foreground">
                 <Shield className="h-5 w-5 text-destructive" />

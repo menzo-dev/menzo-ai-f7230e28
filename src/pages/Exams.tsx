@@ -72,9 +72,8 @@ const Exams = () => {
   const { toast } = useToast();
 
   const [stage, setStage] = useState<ExamStage>("select");
-  const [divisionTab, setDivisionTab] = useState<"scientific" | "literary">(
-    (profile as any)?.division === "literary" ? "literary" : "scientific"
-  );
+  const userDivision = (profile as any)?.division === "literary" ? "literary" : "scientific";
+  const [divisionTab, setDivisionTab] = useState<"scientific" | "literary">(userDivision);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [questionCount, setQuestionCount] = useState(10);
   const [customCount, setCustomCount] = useState("");
@@ -177,22 +176,41 @@ const Exams = () => {
         }
       }
 
-      let cleanText = fullText.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
-      // Remove control characters that break JSON parsing
-      cleanText = cleanText.replace(/[\x00-\x1F\x7F]/g, (ch) => ch === '\n' || ch === '\r' || ch === '\t' ? ch : '');
+      // Robust JSON extraction and parsing
+      let cleanText = fullText
+        .replace(/```json\s*/gi, "")
+        .replace(/```\s*/g, "")
+        .replace(/^[^[]*(\[)/s, "$1")
+        .trim();
+      // Remove control characters except newlines/tabs
+      cleanText = cleanText.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
       const jsonMatch = cleanText.match(/\[[\s\S]*\]/);
       if (!jsonMatch) throw new Error("لم يتم إنشاء أسئلة صالحة. حاول مرة أخرى.");
       let parsedQuestions: Question[];
+      const rawJson = jsonMatch[0];
       try {
-        parsedQuestions = JSON.parse(jsonMatch[0]);
+        parsedQuestions = JSON.parse(rawJson);
       } catch {
-        // Try fixing common JSON issues
-        const fixed = jsonMatch[0]
-          .replace(/,\s*]/g, "]")
-          .replace(/,\s*}/g, "}")
-          .replace(/[\x00-\x1F\x7F]/g, "")
-          .replace(/\n/g, " ");
-        parsedQuestions = JSON.parse(fixed);
+        // Aggressive cleanup for common AI JSON issues
+        let fixed = rawJson
+          .replace(/,\s*([}\]])/g, "$1")   // trailing commas
+          .replace(/[\x00-\x1F\x7F]/g, " ") // all control chars to space
+          .replace(/\n/g, " ")
+          .replace(/\r/g, "")
+          .replace(/\t/g, " ")
+          .replace(/"\s*:\s*"([^"]*?)(?<!\\)"\s*([^",}\]])/g, '":"$1" $2') // fix unescaped quotes in values
+          .replace(/,\s*,/g, ",");          // double commas
+        try {
+          parsedQuestions = JSON.parse(fixed);
+        } catch {
+          // Last resort: extract individual objects
+          const objMatches = [...fixed.matchAll(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g)];
+          const extracted = objMatches.map(m => {
+            try { return JSON.parse(m[0]); } catch { return null; }
+          }).filter(Boolean);
+          if (extracted.length === 0) throw new Error("لم يتم إنشاء أسئلة صالحة. حاول مرة أخرى مع نموذج مختلف.");
+          parsedQuestions = extracted as Question[];
+        }
       }
       const validQuestions = parsedQuestions.filter(q => q.q_text && Array.isArray(q.choices) && q.choices.length >= 2 && q.answer);
       if (validQuestions.length === 0) throw new Error("الأسئلة غير صالحة. حاول مرة أخرى.");

@@ -127,28 +127,34 @@ export type Database = {
           audio_url: string | null
           content: string
           created_at: string | null
+          forum_type: string | null
           id: string
           image_url: string | null
           updated_at: string | null
           user_id: string
+          video_url: string | null
         }
         Insert: {
           audio_url?: string | null
           content: string
           created_at?: string | null
+          forum_type?: string | null
           id?: string
           image_url?: string | null
           updated_at?: string | null
           user_id: string
+          video_url?: string | null
         }
         Update: {
           audio_url?: string | null
           content?: string
           created_at?: string | null
+          forum_type?: string | null
           id?: string
           image_url?: string | null
           updated_at?: string | null
           user_id?: string
+          video_url?: string | null
         }
         Relationships: []
       }
