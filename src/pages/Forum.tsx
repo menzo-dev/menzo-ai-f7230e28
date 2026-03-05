@@ -66,7 +66,7 @@ const Forum = () => {
       .limit(200);
     const { data } = await (query as any).eq("forum_type", userGender);
     if (!data) return;
-    const userIds = [...new Set(data.map(p => p.user_id))];
+    const userIds: string[] = [...new Set(data.map((p: any) => p.user_id as string))];
     if (userIds.length === 0) { setPosts([]); return; }
     const { data: profiles } = await supabase.from("profiles").select("id, display_name, avatar_url").in("id", userIds);
     const profileMap = new Map((profiles || []).map(p => [p.id, p]));
