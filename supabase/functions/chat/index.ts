@@ -21,6 +21,9 @@ function getProviderConfig(model: string) {
   if (model.startsWith("openrouter/")) {
     return { url: "https://openrouter.ai/api/v1/chat/completions", key: Deno.env.get("OPENROUTER_API_KEY")!, model: model.replace("openrouter/", "") };
   }
+  if (model.startsWith("qwen/") || model.startsWith("meta/") || model.startsWith("mistral/")) {
+    return { url: "https://openrouter.ai/api/v1/chat/completions", key: Deno.env.get("OPENROUTER_API_KEY")!, model };
+  }
   if (model.startsWith("huggingface/")) {
     return { url: "https://api-inference.huggingface.co/models/" + model.replace("huggingface/", ""), key: Deno.env.get("HUGGINGFACE_API_KEY")!, model: model.replace("huggingface/", ""), isHuggingFace: true };
   }
