@@ -142,6 +142,10 @@ const Forum = () => {
 
   const sendPost = async () => {
     if ((!message.trim() && !imageFile && !audioBlob && !videoFile) || !user) return;
+    if (isForumBanned) {
+      toast({ title: "محظور", description: "أنت محظور من إرسال رسائل في المنتدى", variant: "destructive" });
+      return;
+    }
     setLoading(true);
     try {
       let imageUrl: string | null = null;
