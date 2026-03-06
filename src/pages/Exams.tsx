@@ -88,7 +88,7 @@ const Exams = () => {
   const [examLoading, setExamLoading] = useState(false);
   const [examFinished, setExamFinished] = useState(false);
 
-  const subjects = divisionTab === "scientific" ? SCIENTIFIC_SUBJECTS : LITERARY_SUBJECTS;
+  const subjects = userDivision === "scientific" ? SCIENTIFIC_SUBJECTS : LITERARY_SUBJECTS;
 
   const finishExam = useCallback(async () => {
     if (examFinished) return;
