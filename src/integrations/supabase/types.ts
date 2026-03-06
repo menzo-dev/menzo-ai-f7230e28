@@ -158,6 +158,33 @@ export type Database = {
         }
         Relationships: []
       }
+      friend_requests: {
+        Row: {
+          created_at: string | null
+          id: string
+          receiver_id: string
+          sender_id: string
+          status: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          receiver_id: string
+          sender_id: string
+          status?: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          receiver_id?: string
+          sender_id?: string
+          status?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       lessons: {
         Row: {
           content_md: string | null
@@ -221,6 +248,48 @@ export type Database = {
         }
         Relationships: []
       }
+      private_messages: {
+        Row: {
+          audio_url: string | null
+          content: string
+          created_at: string | null
+          file_name: string | null
+          file_url: string | null
+          id: string
+          image_url: string | null
+          is_read: boolean | null
+          receiver_id: string
+          sender_id: string
+          video_url: string | null
+        }
+        Insert: {
+          audio_url?: string | null
+          content?: string
+          created_at?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          image_url?: string | null
+          is_read?: boolean | null
+          receiver_id: string
+          sender_id: string
+          video_url?: string | null
+        }
+        Update: {
+          audio_url?: string | null
+          content?: string
+          created_at?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          image_url?: string | null
+          is_read?: boolean | null
+          receiver_id?: string
+          sender_id?: string
+          video_url?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -232,6 +301,7 @@ export type Database = {
           gender: string | null
           id: string
           is_banned: boolean | null
+          is_forum_banned: boolean | null
           phone: string | null
           phone_parent: string | null
           updated_at: string | null
@@ -246,6 +316,7 @@ export type Database = {
           gender?: string | null
           id: string
           is_banned?: boolean | null
+          is_forum_banned?: boolean | null
           phone?: string | null
           phone_parent?: string | null
           updated_at?: string | null
@@ -260,6 +331,7 @@ export type Database = {
           gender?: string | null
           id?: string
           is_banned?: boolean | null
+          is_forum_banned?: boolean | null
           phone?: string | null
           phone_parent?: string | null
           updated_at?: string | null
@@ -328,6 +400,51 @@ export type Database = {
           updated_at?: string | null
           updated_by?: string | null
           value?: string | null
+        }
+        Relationships: []
+      }
+      user_blocks: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string | null
+          id: string
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string | null
+          id?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string | null
+          id?: string
+        }
+        Relationships: []
+      }
+      user_reports: {
+        Row: {
+          created_at: string | null
+          id: string
+          reason: string | null
+          reported_id: string
+          reporter_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          reason?: string | null
+          reported_id: string
+          reporter_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          reason?: string | null
+          reported_id?: string
+          reporter_id?: string
         }
         Relationships: []
       }
