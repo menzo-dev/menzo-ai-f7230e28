@@ -45,6 +45,7 @@ const Forum = () => {
 
   const isAdmin = role === "admin";
   const userGender = (profile as any)?.gender || "male";
+  const isForumBanned = (profile as any)?.is_forum_banned === true;
   const forumTitle = userGender === "female" ? "منتدى الطالبات" : "منتدى الطلاب";
 
   useEffect(() => {
