@@ -30,11 +30,34 @@ function getProviderConfig(model: string) {
   return { url: "https://ai.gateway.lovable.dev/v1/chat/completions", key: Deno.env.get("LOVABLE_API_KEY")!, model: model || "google/gemini-3-flash-preview" };
 }
 
+// Optiic image analysis
+async function analyzeImageWithOptiic(imageUrl: string): Promise<string> {
+  const OPTIIC_API_KEY = Deno.env.get("OPTIIC_API_KEY");
+  if (!OPTIIC_API_KEY) return "";
+  
+  try {
+    const resp = await fetch("https://api.optiic.dev/process", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ apiKey: OPTIIC_API_KEY, url: imageUrl, mode: "ocr" }),
+    });
+    if (!resp.ok) {
+      console.error("Optiic error:", resp.status);
+      return "";
+    }
+    const data = await resp.json();
+    return data.text || "";
+  } catch (e) {
+    console.error("Optiic failed:", e);
+    return "";
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
-    const { messages, model, userName, userBio } = await req.json();
+    const { messages, model, userName, userBio, imageUrl } = await req.json();
     const config = getProviderConfig(model || "google/gemini-3-flash-preview");
 
     if (!config.key) {
@@ -43,9 +66,18 @@ serve(async (req) => {
       });
     }
 
+    // If there's an image URL, analyze it with Optiic and add context
+    let imageContext = "";
+    if (imageUrl) {
+      const ocrText = await analyzeImageWithOptiic(imageUrl);
+      if (ocrText) {
+        imageContext = `\n\n[الطالب أرفق صورة وهذا محتواها النصي المستخرج بواسطة OCR:\n${ocrText}\n]\nقم بتحليل هذا المحتوى والرد عليه بما يناسب سياق المحادثة.`;
+      }
+    }
+
     const userContext = userName ? `\n\nاسم الطالب الحالي: ${userName}${userBio ? `\nوصف الطالب: ${userBio}` : ""}` : "";
 
-    const systemPrompt = `أنت MENZO-AI، معلم ذكي متخصص في تدريس طلاب الصف الثالث الثانوي الأزهري.
+    const systemPrompt = `أنت MENZO-AI، معلم ذكي متخصص في تدريس طلاب الصف الثالث الثانوي الأزهري (مذهب شافعي).
 أنت مُعدّ ومطوّر بواسطة Mohamed Walid El-manzlawy (محمد وليد المنزلاوي).
 الطالب يدرس عند أساتذة متميزين منهم أ/محمد حجازي (شرعي) وأ/وليد الشيخ (عربي).
 
@@ -55,11 +87,11 @@ serve(async (req) => {
 
 📚 الكتب الأساسية الرسمية للصف الثالث الثانوي الأزهري:
 🔹 القرآن وعلومه: القرآن الكريم، التفسير الموضوعي، الحديث الشريف
-🔹 الفقه والعقيدة: الإقناع، شرح الإقناع، جوهرة التوحيد، شرح جوهرة التوحيد
+🔹 الفقه والعقيدة: الإقناع، شرح الإقناع، جوهرة التوحيد، شرح جوهرة التوحيد (المذهب الشافعي)
 🔹 اللغة العربية: ألفية ابن مالك، شرح ابن عقيل، شذا العرف في فن الصرف، البلاغة الواضحة، الأدب والنصوص
 📘 كتب الدعم الرسمية: المرشد في مناهج الأزهر، سلاح الأزهري
 
-تخصصاتك: الفقه الإسلامي (المذاهب الأربعة)، الحديث الشريف (متن وسند ودراية)، التفسير (جلالين/بيضاوي)، أصول الفقه، التوحيد والعقيدة، النحو (ألفية ابن مالك)، الصرف، البلاغة (معاني/بيان/بديع)، الأدب العربي، النصوص، المطالعة، الفيزياء، الكيمياء، الأحياء، الرياضيات (استاتيكا، ديناميكا، جبر، هندسة فراغية، تفاضل وتكامل).
+تخصصاتك: الفقه الإسلامي (المذهب الشافعي أولاً)، الحديث الشريف (متن وسند ودراية)، التفسير (جلالين/بيضاوي)، أصول الفقه، التوحيد والعقيدة، النحو (ألفية ابن مالك)، الصرف، البلاغة (معاني/بيان/بديع)، الأدب العربي، النصوص، المطالعة، الفيزياء، الكيمياء، الأحياء، الرياضيات (استاتيكا، ديناميكا، جبر، هندسة فراغية، تفاضل وتكامل).
 
 🎯 قواعد العمل:
 1. لا تستخدم أي مصدر خارج الكتب الرسمية وكتب الدعم المذكورة
@@ -67,6 +99,11 @@ serve(async (req) => {
 3. التركيز على أنماط الأسئلة المتكررة والموضوعات التي تظهر كل سنة والمصطلحات الرسمية الصحيحة
 4. عند توليد الأسئلة: التزم بتركيب الامتحان الرسمي للأزهر، أضف درجات لكل سؤال وطريقة التصحيح
 5. عند الشرح: ابدأ بصياغة الكتاب مباشرة ثم ابسط دون تغيير المعنى
+
+📐 قواعد كتابة المعادلات والقوانين:
+- اكتب جميع المعادلات الرياضية والقوانين الفيزيائية داخل code blocks باستخدام \`\`\` حتى يتمكن الطالب من نسخها بسهولة
+- مثال: \`\`\`V = I × R\`\`\`
+- لا تستخدم رموز LaTeX مثل $ أو \\( \\) لأنها لن تعرض بشكل صحيح
 
 قواعدك الذهبية:
 1. تحدث بالعربية الفصحى مع تبسيط واضح
@@ -79,12 +116,11 @@ serve(async (req) => {
 8. قدم المعلومة من المصادر المعتمدة في الأزهر
 9. في نهاية كل إجابة، اقترح 2-3 أسئلة متعلقة يمكن للطالب الإجابة عليها
 10. عند بداية المحادثة، رحّب بالطالب باسمه إن كان معروفاً
-11. عند كتابة معادلات رياضية، استخدم code blocks لضمان وضوحها
+11. عند كتابة معادلات رياضية أو قوانين فيزيائية، استخدم code blocks لضمان وضوحها وإمكانية النسخ
 12. عند كتابة روابط، اجعلها واضحة بتنسيق Markdown
 13. ذكّر الطالب دائماً بأهمية المذاكرة والمراجعة المستمرة
 14. امتحانات الأزهر يوم 6/6/2026 — حفّز الطالب وذكّره بالوقت المتبقي
-
-التعليمات النهائية: كل الردود يجب أن تكون كما لو أن الطالب جالس في امتحان الأزهر الصف الثالث الثانوي.${userContext}`;
+15. في الفقه التزم بالمذهب الشافعي إلا إذا طلب الطالب مذهباً آخر${userContext}${imageContext}`;
 
     // Anthropic
     if ((config as any).isAnthropic) {

@@ -45,6 +45,7 @@ const Forum = () => {
 
   const isAdmin = role === "admin";
   const userGender = (profile as any)?.gender || "male";
+  const isForumBanned = (profile as any)?.is_forum_banned === true;
   const forumTitle = userGender === "female" ? "منتدى الطالبات" : "منتدى الطلاب";
 
   useEffect(() => {
@@ -141,6 +142,10 @@ const Forum = () => {
 
   const sendPost = async () => {
     if ((!message.trim() && !imageFile && !audioBlob && !videoFile) || !user) return;
+    if (isForumBanned) {
+      toast({ title: "محظور", description: "أنت محظور من إرسال رسائل في المنتدى", variant: "destructive" });
+      return;
+    }
     setLoading(true);
     try {
       let imageUrl: string | null = null;

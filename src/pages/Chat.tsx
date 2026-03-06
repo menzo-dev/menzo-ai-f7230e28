@@ -193,6 +193,9 @@ const Chat = () => {
     abortControllerRef.current = controller;
     
     const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
+    // Check if the last user message has an image
+    const lastMsg = msgs[msgs.length - 1];
+    const msgImageUrl = lastMsg?.imageUrl || undefined;
     const resp = await fetch(CHAT_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
@@ -201,6 +204,7 @@ const Chat = () => {
         model: selectedModel,
         userName: profile?.display_name,
         userBio: profile?.bio,
+        imageUrl: msgImageUrl,
       }),
       signal: controller.signal,
     });

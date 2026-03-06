@@ -73,7 +73,6 @@ const Exams = () => {
 
   const [stage, setStage] = useState<ExamStage>("select");
   const userDivision = (profile as any)?.division === "literary" ? "literary" : "scientific";
-  const [divisionTab, setDivisionTab] = useState<"scientific" | "literary">(userDivision);
   const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [questionCount, setQuestionCount] = useState(10);
   const [customCount, setCustomCount] = useState("");
@@ -89,7 +88,7 @@ const Exams = () => {
   const [examLoading, setExamLoading] = useState(false);
   const [examFinished, setExamFinished] = useState(false);
 
-  const subjects = divisionTab === "scientific" ? SCIENTIFIC_SUBJECTS : LITERARY_SUBJECTS;
+  const subjects = userDivision === "scientific" ? SCIENTIFIC_SUBJECTS : LITERARY_SUBJECTS;
 
   const finishExam = useCallback(async () => {
     if (examFinished) return;
@@ -242,19 +241,9 @@ const Exams = () => {
         {stage === "select" && (
           <div>
             <h1 className="text-3xl font-bold mb-2"><span className="text-gradient-cosmic">الاختبارات</span></h1>
-            <p className="text-muted-foreground mb-6">اختر الشعبة والمادة واختبر نفسك</p>
-            
-            {/* Division tabs */}
-            <div className="flex gap-2 mb-6">
-              <button onClick={() => setDivisionTab("scientific")}
-                className={`flex-1 rounded-xl py-3 text-sm font-bold transition-all border ${divisionTab === "scientific" ? "bg-primary/15 text-primary border-primary/40" : "bg-secondary text-foreground border-border/30"}`}>
-                🔬 علمي
-              </button>
-              <button onClick={() => setDivisionTab("literary")}
-                className={`flex-1 rounded-xl py-3 text-sm font-bold transition-all border ${divisionTab === "literary" ? "bg-accent/15 text-accent border-accent/40" : "bg-secondary text-foreground border-border/30"}`}>
-                📚 أدبي
-              </button>
-            </div>
+            <p className="text-muted-foreground mb-6">
+              {userDivision === "scientific" ? "🔬 القسم العلمي" : "📚 القسم الأدبي"} — اختر المادة واختبر نفسك
+            </p>
 
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {subjects.map((s) => (
