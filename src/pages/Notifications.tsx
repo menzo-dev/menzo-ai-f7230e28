@@ -1,8 +1,10 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Bell, CheckCheck, Trash2 } from "lucide-react";
+import { ArrowLeft, Bell, CheckCheck, Trash2, Mail } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 interface Notification {
   id: string;
@@ -16,6 +18,7 @@ interface Notification {
 const Notifications = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -52,6 +55,23 @@ const Notifications = () => {
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
   };
 
+  const deleteAllNotifications = async () => {
+    if (!confirm("هل تريد حذف جميع الإشعارات؟")) return;
+    // Delete user's notifications (where user_id matches or is null for broadcasts)
+    if (user) {
+      await supabase.from("notifications").delete().eq("user_id", user.id);
+    }
+    setNotifications([]);
+    toast({ title: "تم", description: "تم حذف جميع الإشعارات" });
+  };
+
+  const handleNotificationClick = (n: Notification) => {
+    if (!n.is_read) markAsRead(n.id);
+    // Navigate based on content
+    if (n.title.includes("صداقة")) navigate("/messages");
+    else if (n.title.includes("حظر") || n.title.includes("منتدى")) navigate("/contact");
+  };
+
   const unreadCount = notifications.filter(n => !n.is_read).length;
 
   return (
@@ -66,12 +86,26 @@ const Notifications = () => {
             <h1 className="text-2xl font-bold"><span className="text-gradient-cosmic">الإشعارات</span></h1>
             {unreadCount > 0 && <p className="text-sm text-muted-foreground mt-1">{unreadCount} إشعار غير مقروء</p>}
           </div>
-          {unreadCount > 0 && (
-            <button onClick={markAllAsRead} className="flex items-center gap-1.5 text-xs text-primary hover:underline">
-              <CheckCheck className="h-4 w-4" /> تعليم الكل كمقروء
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {unreadCount > 0 && (
+              <button onClick={markAllAsRead} className="flex items-center gap-1.5 text-xs text-primary hover:underline">
+                <CheckCheck className="h-4 w-4" /> تعليم الكل كمقروء
+              </button>
+            )}
+            {notifications.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={deleteAllNotifications}
+                className="text-destructive hover:text-destructive/80 text-xs">
+                <Trash2 className="h-3.5 w-3.5 ml-1" /> حذف الكل
+              </Button>
+            )}
+          </div>
         </div>
+
+        {/* Contact Admin button */}
+        <Button variant="outline" onClick={() => navigate("/contact")}
+          className="w-full mb-4 border-primary/30 text-primary hover:bg-primary/5">
+          <Mail className="ml-2 h-4 w-4" /> تواصل مع الإدارة
+        </Button>
 
         {loading ? (
           <div className="flex justify-center py-20">
@@ -87,8 +121,8 @@ const Notifications = () => {
             {notifications.map(n => (
               <div
                 key={n.id}
-                onClick={() => !n.is_read && markAsRead(n.id)}
-                className={`glass rounded-xl p-4 cursor-pointer transition-all ${!n.is_read ? "border-primary/40 bg-primary/5" : "opacity-70"}`}
+                onClick={() => handleNotificationClick(n)}
+                className={`glass rounded-xl p-4 cursor-pointer transition-all hover:border-primary/30 ${!n.is_read ? "border-primary/40 bg-primary/5" : "opacity-70"}`}
               >
                 <div className="flex items-start gap-3">
                   {n.image_url ? (
