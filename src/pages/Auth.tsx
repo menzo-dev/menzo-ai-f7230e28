@@ -9,6 +9,8 @@ import { useAuth } from "@/contexts/AuthContext";
 
 type Mode = "login" | "signup" | "forgot";
 
+const PHONE_REGEX = /^(\+?20|0)?1[0125]\d{8}$/;
+
 const Auth = () => {
   const [mode, setMode] = useState<Mode>("login");
   const [email, setEmail] = useState("");
@@ -22,6 +24,7 @@ const Auth = () => {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [phoneError, setPhoneError] = useState("");
   const avatarInputRef = useRef<HTMLInputElement>(null);
 
   const navigate = useNavigate();
@@ -43,6 +46,17 @@ const Auth = () => {
     reader.readAsDataURL(file);
   };
 
+  const validatePhone = (value: string): boolean => {
+    if (!value.trim()) return false;
+    const cleaned = value.replace(/[\s-]/g, "");
+    if (!PHONE_REGEX.test(cleaned)) {
+      setPhoneError("أدخل رقم هاتف مصري صحيح (مثال: 01012345678)");
+      return false;
+    }
+    setPhoneError("");
+    return true;
+  };
+
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
       toast({ title: "خطأ", description: "يرجى ملء جميع الحقول", variant: "destructive" });
@@ -52,7 +66,7 @@ const Auth = () => {
     if (error) {
       let msg = error.message;
       if (msg.includes("Invalid login")) msg = "البريد الإلكتروني أو كلمة المرور غير صحيحة";
-      if (msg.includes("Email not confirmed")) msg = "يرجى تأكيد بريدك الإلكتروني أولاً";
+      if (msg.includes("Email not confirmed")) msg = "يرجى تأكيد بريدك الإلكتروني أولاً. تحقق من صندوق الوارد أو مجلد السبام.";
       toast({ title: "فشل تسجيل الدخول", description: msg, variant: "destructive" });
     }
   };
@@ -66,10 +80,30 @@ const Auth = () => {
       toast({ title: "خطأ", description: "كلمة المرور يجب أن تكون 6 أحرف على الأقل", variant: "destructive" });
       return;
     }
+    if (!validatePhone(phone)) return;
+    if (phoneParent.trim() && !PHONE_REGEX.test(phoneParent.replace(/[\s-]/g, ""))) {
+      toast({ title: "خطأ", description: "رقم ولي الأمر غير صحيح", variant: "destructive" });
+      return;
+    }
+
+    // Check if phone is already used
+    const { data: existingPhone } = await supabase
+      .from("profiles")
+      .select("id")
+      .eq("phone", phone.replace(/[\s-]/g, ""))
+      .limit(1);
+    if (existingPhone && existingPhone.length > 0) {
+      toast({ title: "خطأ", description: "رقم الهاتف مسجل بالفعل", variant: "destructive" });
+      return;
+    }
+
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
-      options: { data: { display_name: displayName.trim() } },
+      options: {
+        data: { display_name: displayName.trim() },
+        emailRedirectTo: window.location.origin,
+      },
     });
     if (error) {
       let msg = error.message;
@@ -78,15 +112,13 @@ const Auth = () => {
       return;
     }
     if (data.user) {
-      // Update profile with additional fields
       await supabase.from("profiles").update({
-        phone,
-        phone_parent: phoneParent || null,
+        phone: phone.replace(/[\s-]/g, ""),
+        phone_parent: phoneParent ? phoneParent.replace(/[\s-]/g, "") : null,
         division,
         gender,
       }).eq("id", data.user.id);
 
-      // Upload avatar if selected
       if (avatarFile) {
         const ext = avatarFile.name.split(".").pop();
         const path = `${data.user.id}/avatar.${ext}`;
@@ -97,7 +129,10 @@ const Auth = () => {
         }
       }
 
-      toast({ title: "تم إنشاء الحساب بنجاح! 🎉", description: "تم إرسال رسالة تأكيد إلى بريدك الإلكتروني. يرجى فتحها والضغط على رابط التأكيد لتفعيل حسابك." });
+      toast({
+        title: "تم إنشاء الحساب بنجاح! 🎉",
+        description: "تم إرسال رسالة تأكيد إلى بريدك الإلكتروني. يرجى فتحها والضغط على رابط التأكيد لتفعيل حسابك. تحقق من مجلد السبام أيضاً.",
+      });
     }
   };
 
@@ -136,12 +171,9 @@ const Auth = () => {
       </div>
 
       <div className="relative z-10 w-full max-w-md">
-        <button
-          onClick={() => navigate("/")}
-          className="mb-6 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          العودة للرئيسية
+        <button onClick={() => navigate("/")}
+          className="mb-6 flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <ArrowLeft className="h-4 w-4" /> العودة للرئيسية
         </button>
 
         <div className="glass rounded-2xl p-8 max-h-[85vh] overflow-y-auto scrollbar-hide">
@@ -160,7 +192,6 @@ const Auth = () => {
           <form onSubmit={handleAuth} className="space-y-4">
             {mode === "signup" && (
               <>
-                {/* Avatar Upload */}
                 <div className="flex justify-center mb-2">
                   <div className="relative cursor-pointer" onClick={() => avatarInputRef.current?.click()}>
                     {avatarPreview ? (
@@ -178,54 +209,55 @@ const Auth = () => {
                 </div>
                 <p className="text-center text-xs text-muted-foreground -mt-2">صورة الحساب (اختياري)</p>
 
-                {/* Name */}
                 <div className="relative">
                   <User className="absolute right-3 top-3 h-5 w-5 text-muted-foreground" />
-                  <Input placeholder="الاسم الكامل *" value={displayName} onChange={(e) => setDisplayName(e.target.value)}
+                  <Input placeholder="الاسم الكامل *" value={displayName} onChange={e => setDisplayName(e.target.value)}
                     className="pr-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground" required />
                 </div>
 
-                {/* Gender */}
                 <div>
                   <label className="text-sm text-muted-foreground mb-2 block">النوع *</label>
                   <div className="grid grid-cols-2 gap-2">
                     <button type="button" onClick={() => setGender("male")}
-                      className={`rounded-xl py-2.5 text-sm font-bold transition-all border ${gender === "male" ? "bg-primary/15 text-primary border-primary/40" : "bg-secondary text-foreground border-border/30 hover:border-primary/30"}`}>
+                      className={`rounded-xl py-2.5 text-sm font-bold transition-all border ${gender === "male" ? "bg-primary/15 text-primary border-primary/40" : "bg-secondary text-foreground border-border/30"}`}>
                       👨 طالب
                     </button>
                     <button type="button" onClick={() => setGender("female")}
-                      className={`rounded-xl py-2.5 text-sm font-bold transition-all border ${gender === "female" ? "bg-accent/15 text-accent border-accent/40" : "bg-secondary text-foreground border-border/30 hover:border-accent/30"}`}>
+                      className={`rounded-xl py-2.5 text-sm font-bold transition-all border ${gender === "female" ? "bg-accent/15 text-accent border-accent/40" : "bg-secondary text-foreground border-border/30"}`}>
                       👩 طالبة
                     </button>
                   </div>
                 </div>
 
-                {/* Division */}
                 <div>
                   <label className="text-sm text-muted-foreground mb-2 block">الشعبة *</label>
                   <div className="grid grid-cols-2 gap-2">
                     <button type="button" onClick={() => setDivision("scientific")}
-                      className={`rounded-xl py-2.5 text-sm font-bold transition-all border ${division === "scientific" ? "bg-primary/15 text-primary border-primary/40" : "bg-secondary text-foreground border-border/30 hover:border-primary/30"}`}>
+                      className={`rounded-xl py-2.5 text-sm font-bold transition-all border ${division === "scientific" ? "bg-primary/15 text-primary border-primary/40" : "bg-secondary text-foreground border-border/30"}`}>
                       🔬 علمي
                     </button>
                     <button type="button" onClick={() => setDivision("literary")}
-                      className={`rounded-xl py-2.5 text-sm font-bold transition-all border ${division === "literary" ? "bg-accent/15 text-accent border-accent/40" : "bg-secondary text-foreground border-border/30 hover:border-accent/30"}`}>
+                      className={`rounded-xl py-2.5 text-sm font-bold transition-all border ${division === "literary" ? "bg-accent/15 text-accent border-accent/40" : "bg-secondary text-foreground border-border/30"}`}>
                       📚 أدبي
                     </button>
                   </div>
                 </div>
 
-                {/* Phone */}
-                <div className="relative">
-                  <Phone className="absolute right-3 top-3 h-5 w-5 text-muted-foreground" />
-                  <Input placeholder="رقم الهاتف *" value={phone} onChange={(e) => setPhone(e.target.value)}
-                    className="pr-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground" required />
+                <div>
+                  <div className="relative">
+                    <Phone className="absolute right-3 top-3 h-5 w-5 text-muted-foreground" />
+                    <Input placeholder="رقم الهاتف * (مثال: 01012345678)" value={phone}
+                      onChange={e => { setPhone(e.target.value); if (phoneError) validatePhone(e.target.value); }}
+                      className={`pr-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground ${phoneError ? "border-destructive" : ""}`}
+                      required />
+                  </div>
+                  {phoneError && <p className="text-xs text-destructive mt-1">{phoneError}</p>}
                 </div>
 
-                {/* Parent Phone */}
                 <div className="relative">
                   <Phone className="absolute right-3 top-3 h-5 w-5 text-muted-foreground" />
-                  <Input placeholder="رقم ولي الأمر (اختياري)" value={phoneParent} onChange={(e) => setPhoneParent(e.target.value)}
+                  <Input placeholder="رقم ولي الأمر (اختياري)" value={phoneParent}
+                    onChange={e => setPhoneParent(e.target.value)}
                     className="pr-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground" />
                 </div>
               </>
@@ -233,14 +265,14 @@ const Auth = () => {
 
             <div className="relative">
               <Mail className="absolute right-3 top-3 h-5 w-5 text-muted-foreground" />
-              <Input type="email" placeholder="البريد الإلكتروني" value={email} onChange={(e) => setEmail(e.target.value)}
+              <Input type="email" placeholder="البريد الإلكتروني" value={email} onChange={e => setEmail(e.target.value)}
                 className="pr-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground" required />
             </div>
 
             {mode !== "forgot" && (
               <div className="relative">
                 <Lock className="absolute right-3 top-3 h-5 w-5 text-muted-foreground" />
-                <Input type={showPassword ? "text" : "password"} placeholder="كلمة المرور" value={password} onChange={(e) => setPassword(e.target.value)}
+                <Input type={showPassword ? "text" : "password"} placeholder="كلمة المرور" value={password} onChange={e => setPassword(e.target.value)}
                   className="pr-10 pl-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground" required minLength={6} />
                 <button type="button" onClick={() => setShowPassword(!showPassword)}
                   className="absolute left-3 top-3 text-muted-foreground hover:text-foreground">
@@ -269,7 +301,8 @@ const Auth = () => {
               </button>
             )}
             {mode !== "forgot" && (
-              <button onClick={() => { setMode(mode === "login" ? "signup" : "login"); setPassword(""); }} className="text-sm text-primary hover:underline">
+              <button onClick={() => { setMode(mode === "login" ? "signup" : "login"); setPassword(""); setPhoneError(""); }}
+                className="text-sm text-primary hover:underline">
                 {mode === "login" ? "ليس لديك حساب؟ أنشئ حساباً" : "لديك حساب بالفعل؟ سجل دخول"}
               </button>
             )}

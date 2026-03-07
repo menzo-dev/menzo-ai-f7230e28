@@ -529,6 +529,10 @@ const Chat = () => {
               <UsersIcon className="h-5 w-5 text-primary" />
               <span className="text-sm">منتدى الطلاب</span>
             </button>
+            <button onClick={() => navigate("/messages")} className="flex items-center gap-3 w-full rounded-xl px-3 py-2.5 hover:bg-secondary/60 transition-colors text-foreground">
+              <MessageSquare className="h-5 w-5 text-accent" />
+              <span className="text-sm">المحادثات الخاصة</span>
+            </button>
             <button onClick={() => navigate("/notifications")} className="flex items-center gap-3 w-full rounded-xl px-3 py-2.5 hover:bg-secondary/60 transition-colors text-foreground">
               <Sparkles className="h-5 w-5 text-accent" />
               <span className="text-sm">الإشعارات</span>
@@ -558,8 +562,8 @@ const Chat = () => {
 
       {/* Main Chat */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top bar */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-border/40 glass-strong">
+        {/* Top bar - Sticky */}
+        <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 border-b border-border/40 glass-strong">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setSidebarOpen(true)}>
               <Menu className="h-5 w-5" />
@@ -757,8 +761,8 @@ const Chat = () => {
           </div>
         )}
 
-        {/* Input */}
-        <div className="border-t border-border/40 p-4">
+        {/* Input - Sticky bottom */}
+        <div className="sticky bottom-0 border-t border-border/40 p-4 glass-strong">
           <div className="max-w-3xl mx-auto">
             {uploadedFile && (
               <div className="mb-2 flex items-center gap-2 rounded-xl bg-secondary/60 border border-border/30 px-3 py-2">
