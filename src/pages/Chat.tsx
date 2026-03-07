@@ -761,8 +761,8 @@ const Chat = () => {
           </div>
         )}
 
-        {/* Input */}
-        <div className="border-t border-border/40 p-4">
+        {/* Input - Sticky bottom */}
+        <div className="sticky bottom-0 border-t border-border/40 p-4 glass-strong">
           <div className="max-w-3xl mx-auto">
             {uploadedFile && (
               <div className="mb-2 flex items-center gap-2 rounded-xl bg-secondary/60 border border-border/30 px-3 py-2">
