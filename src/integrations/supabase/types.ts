@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      books: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          file_url: string
+          id: string
+          subject: string | null
+          thumbnail_url: string | null
+          title: string
+          uploaded_by: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          file_url: string
+          id?: string
+          subject?: string | null
+          thumbnail_url?: string | null
+          title: string
+          uploaded_by?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          file_url?: string
+          id?: string
+          subject?: string | null
+          thumbnail_url?: string | null
+          title?: string
+          uploaded_by?: string | null
+        }
+        Relationships: []
+      }
       contact_messages: {
         Row: {
           admin_reply: string | null
@@ -127,6 +160,8 @@ export type Database = {
           audio_url: string | null
           content: string
           created_at: string | null
+          file_name: string | null
+          file_url: string | null
           forum_type: string | null
           id: string
           image_url: string | null
@@ -138,6 +173,8 @@ export type Database = {
           audio_url?: string | null
           content: string
           created_at?: string | null
+          file_name?: string | null
+          file_url?: string | null
           forum_type?: string | null
           id?: string
           image_url?: string | null
@@ -149,6 +186,8 @@ export type Database = {
           audio_url?: string | null
           content?: string
           created_at?: string | null
+          file_name?: string | null
+          file_url?: string | null
           forum_type?: string | null
           id?: string
           image_url?: string | null
