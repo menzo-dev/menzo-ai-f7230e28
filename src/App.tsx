@@ -16,6 +16,8 @@ import Forum from "./pages/Forum";
 import Notifications from "./pages/Notifications";
 import Messages from "./pages/Messages";
 import Contact from "./pages/Contact";
+import Books from "./pages/Books";
+import Stats from "./pages/Stats";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
