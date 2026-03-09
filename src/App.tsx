@@ -16,6 +16,8 @@ import Forum from "./pages/Forum";
 import Notifications from "./pages/Notifications";
 import Messages from "./pages/Messages";
 import Contact from "./pages/Contact";
+import Books from "./pages/Books";
+import Stats from "./pages/Stats";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -41,6 +43,8 @@ const App = () => (
             <Route path="/forum" element={<ProtectedRoute><Forum /></ProtectedRoute>} />
             <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
             <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
+            <Route path="/books" element={<ProtectedRoute><Books /></ProtectedRoute>} />
+            <Route path="/stats" element={<ProtectedRoute><Stats /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

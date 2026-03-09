@@ -8,7 +8,7 @@ import {
   Send, Plus, Bot, User, LogOut, Trash2, Image, Search,
   Menu, X, MessageSquare, Sparkles, ChevronDown, GraduationCap,
   Mic, MicOff, Paperclip, Edit3, Copy, Check, RotateCcw,
-  Users as UsersIcon, Shield, Square, Settings
+  Users as UsersIcon, Shield, Square, Settings, BookOpen, Bell, Mail
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -28,83 +28,61 @@ const MODEL_CATEGORIES = [
   {
     label: "⚡ Lovable AI",
     models: [
-      { id: "google/gemini-3-flash-preview", label: "Gemini 3 Flash ⚡", desc: "سريع ومتوازن" },
-      { id: "google/gemini-3-pro-preview", label: "Gemini 3 Pro 🧠", desc: "أقوى نموذج Google" },
-      { id: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro 💎", desc: "تفكير عميق" },
-      { id: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash", desc: "متوازن" },
-      { id: "google/gemini-2.5-flash-lite", label: "Gemini 2.5 Lite 💨", desc: "أسرع وأرخص" },
-      { id: "openai/gpt-5", label: "GPT-5 🌟", desc: "الأقوى من OpenAI" },
-      { id: "openai/gpt-5-mini", label: "GPT-5 Mini", desc: "سريع واقتصادي" },
-      { id: "openai/gpt-5-nano", label: "GPT-5 Nano 🚀", desc: "خفيف وسريع" },
-      { id: "openai/gpt-5.2", label: "GPT-5.2 🔥", desc: "أحدث إصدار" },
+      { id: "google/gemini-3-flash-preview", label: "Gemini 3 Flash ⚡", desc: "سريع ومتوازن", deepThink: false },
+      { id: "google/gemini-3-pro-preview", label: "Gemini 3 Pro 🧠", desc: "أقوى نموذج Google", deepThink: false },
+      { id: "google/gemini-2.5-pro", label: "Gemini 2.5 Pro 💎", desc: "تفكير عميق", deepThink: true },
+      { id: "google/gemini-2.5-flash", label: "Gemini 2.5 Flash", desc: "متوازن", deepThink: false },
+      { id: "google/gemini-2.5-flash-lite", label: "Gemini 2.5 Lite 💨", desc: "أسرع وأرخص", deepThink: false },
+      { id: "openai/gpt-5", label: "GPT-5 🌟", desc: "الأقوى من OpenAI", deepThink: true },
+      { id: "openai/gpt-5-mini", label: "GPT-5 Mini", desc: "سريع واقتصادي", deepThink: false },
+      { id: "openai/gpt-5-nano", label: "GPT-5 Nano 🚀", desc: "خفيف وسريع", deepThink: false },
+      { id: "openai/gpt-5.2", label: "GPT-5.2 🔥", desc: "أحدث إصدار", deepThink: true },
     ],
   },
   {
     label: "🆓 OpenRouter مجاني",
     models: [
-      { id: "openrouter/qwen/qwen3-235b-a22b:free", label: "Qwen 3 235B 🏮", desc: "أقوى نموذج مجاني" },
-      { id: "openrouter/qwen/qwen3-30b-a3b:free", label: "Qwen 3 30B", desc: "سريع ومجاني" },
-      { id: "openrouter/qwen/qwen3-14b:free", label: "Qwen 3 14B", desc: "خفيف ومجاني" },
-      { id: "openrouter/meta-llama/llama-4-maverick:free", label: "Llama 4 Maverick 🦙", desc: "من Meta مجاناً" },
-      { id: "openrouter/meta-llama/llama-4-scout:free", label: "Llama 4 Scout", desc: "سريع من Meta" },
-      { id: "openrouter/deepseek/deepseek-r1:free", label: "DeepSeek R1 🐉", desc: "تفكير عميق مجاني" },
-      { id: "openrouter/deepseek/deepseek-chat-v3-0324:free", label: "DeepSeek V3 Chat", desc: "محادثة مجانية" },
-      { id: "openrouter/google/gemma-3-27b-it:free", label: "Gemma 3 27B", desc: "من Google مجاناً" },
-      { id: "openrouter/google/gemma-3-12b-it:free", label: "Gemma 3 12B", desc: "خفيف من Google" },
-      { id: "openrouter/mistralai/mistral-small-3.1-24b-instruct:free", label: "Mistral Small 3.1", desc: "فرنسي سريع" },
-      { id: "openrouter/microsoft/phi-4-reasoning:free", label: "Phi-4 Reasoning 🧮", desc: "تفكير من Microsoft" },
-      { id: "openrouter/microsoft/mai-ds-r1:free", label: "MAI-DS R1", desc: "رياضيات من Microsoft" },
-      { id: "openrouter/nvidia/llama-3.1-nemotron-ultra-253b-v1:free", label: "Nemotron Ultra 253B", desc: "عملاق من NVIDIA" },
-      { id: "openrouter/moonshotai/kimi-vl-a3b-thinking:free", label: "Kimi VL 🌙", desc: "رؤية مجانية" },
+      { id: "openrouter/qwen/qwen3-235b-a22b:free", label: "Qwen 3 235B 🏮", desc: "أقوى نموذج مجاني", deepThink: false },
+      { id: "openrouter/qwen/qwen3-30b-a3b:free", label: "Qwen 3 30B", desc: "سريع ومجاني", deepThink: false },
+      { id: "openrouter/deepseek/deepseek-r1:free", label: "DeepSeek R1 🐉", desc: "تفكير عميق مجاني", deepThink: true },
+      { id: "openrouter/meta-llama/llama-4-maverick:free", label: "Llama 4 Maverick 🦙", desc: "من Meta مجاناً", deepThink: false },
+      { id: "openrouter/google/gemma-3-27b-it:free", label: "Gemma 3 27B", desc: "من Google مجاناً", deepThink: false },
+      { id: "openrouter/microsoft/phi-4-reasoning:free", label: "Phi-4 Reasoning 🧮", desc: "تفكير من Microsoft", deepThink: true },
     ],
   },
   {
     label: "🐉 DeepSeek",
     models: [
-      { id: "deepseek/deepseek-chat", label: "DeepSeek Chat 🐉", desc: "محادثة قوية" },
-      { id: "deepseek/deepseek-reasoner", label: "DeepSeek R1 🧠", desc: "تفكير عميق" },
+      { id: "deepseek/deepseek-chat", label: "DeepSeek Chat 🐉", desc: "محادثة قوية", deepThink: false },
+      { id: "deepseek/deepseek-reasoner", label: "DeepSeek R1 🧠", desc: "تفكير عميق", deepThink: true },
     ],
   },
   {
     label: "🤖 Grok & Claude",
     models: [
-      { id: "xai/grok-3", label: "Grok 3 ⚡", desc: "من xAI / إيلون ماسك" },
-      { id: "xai/grok-3-mini", label: "Grok 3 Mini", desc: "خفيف وسريع" },
-      { id: "anthropic/claude-sonnet-4-20250514", label: "Claude Sonnet 4 🎭", desc: "من Anthropic" },
-      { id: "anthropic/claude-3-5-haiku-20241022", label: "Claude 3.5 Haiku", desc: "سريع وذكي" },
-    ],
-  },
-  {
-    label: "🤗 HuggingFace",
-    models: [
-      { id: "huggingface/mistralai/Mistral-7B-Instruct-v0.3", label: "Mistral 7B 🇫🇷", desc: "مجاني من HuggingFace" },
-      { id: "huggingface/microsoft/Phi-3-mini-4k-instruct", label: "Phi-3 Mini 🔬", desc: "خفيف من Microsoft" },
-      { id: "huggingface/google/gemma-2-9b-it", label: "Gemma 2 9B", desc: "من Google" },
+      { id: "xai/grok-3", label: "Grok 3 ⚡", desc: "من xAI / إيلون ماسك", deepThink: false },
+      { id: "xai/grok-3-mini", label: "Grok 3 Mini", desc: "خفيف وسريع", deepThink: false },
+      { id: "anthropic/claude-sonnet-4-20250514", label: "Claude Sonnet 4 🎭", desc: "من Anthropic", deepThink: false },
+      { id: "anthropic/claude-3-5-haiku-20241022", label: "Claude 3.5 Haiku", desc: "سريع وذكي", deepThink: false },
     ],
   },
 ];
 
 const ALL_MODELS = MODEL_CATEGORIES.flatMap(c => c.models);
 
-const IMAGE_MODELS = [
-  { id: "gemini", label: "Gemini Image ✨", desc: "توليد بالذكاء الاصطناعي" },
-  { id: "together", label: "FLUX.1 Schnell 🎨", desc: "Together AI — سريع" },
-  { id: "leonardo", label: "Leonardo AI 🖼️", desc: "جودة عالية احترافية" },
-];
-
-const SEARCH_ENGINES = [
-  { id: "ai", label: "بحث ذكي 🤖", desc: "AI Search" },
-  { id: "exa", label: "Exa 🔍", desc: "بحث عصبي متقدم" },
-  { id: "tavily", label: "Tavily 🌐", desc: "بحث ويب شامل" },
-];
-
-const SUGGESTIONS = [
+const SUGGESTIONS_POOL = [
   "اشرح لي باب الطهارة في الفقه الشافعي",
   "ما إعراب: إن الله مع الصابرين؟",
   "اشرح قوانين نيوتن بالتفصيل",
   "ما الفرق بين الاستعارة والكناية في البلاغة؟",
   "اشرح درس المعادلات التربيعية",
   "ما أركان الإيمان مع الشرح؟",
+  "اشرح قانون أوم وقانون كيرشوف",
+  "ما شروط صحة الصلاة في المذهب الشافعي؟",
+  "اشرح الحركة بعجلة منتظمة في الديناميكا",
+  "ما الفرق بين المجاز المرسل والمجاز العقلي؟",
+  "اشرح تركيب الخلية في الأحياء",
+  "ما أنواع التفاعلات الكيميائية؟",
 ];
 
 const Chat = () => {
@@ -117,30 +95,42 @@ const Chat = () => {
   const [selectedModel, setSelectedModel] = useState(ALL_MODELS[0].id);
   const [showModelPicker, setShowModelPicker] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState<{name: string; type: string; preview?: string} | null>(null);
+  const [uploadedImageUrl, setUploadedImageUrl] = useState<string | null>(null);
+  const [uploadedImagePreview, setUploadedImagePreview] = useState<string | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [currentConvId, setCurrentConvId] = useState<string | null>(null);
   const [showPlus, setShowPlus] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
-  const [showImageGen, setShowImageGen] = useState(false);
-  const [showSearch, setShowSearch] = useState(false);
-  const [imagePrompt, setImagePrompt] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
-  const [selectedImageModel, setSelectedImageModel] = useState("gemini");
-  const [selectedSearchEngine, setSelectedSearchEngine] = useState("ai");
   const [editingMsgIdx, setEditingMsgIdx] = useState<number | null>(null);
   const [editText, setEditText] = useState("");
   const [copiedIdx, setCopiedIdx] = useState<number | null>(null);
   const [editingConvId, setEditingConvId] = useState<string | null>(null);
   const [editingConvTitle, setEditingConvTitle] = useState("");
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
   const messagesEnd = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const recognitionRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Generate random suggestions
+  useEffect(() => {
+    const shuffled = [...SUGGESTIONS_POOL].sort(() => Math.random() - 0.5);
+    setSuggestions(shuffled.slice(0, 4));
+  }, [messages.length === 0]);
+
   useEffect(() => { loadConversations(); }, []);
   useEffect(() => { messagesEnd.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+
+  const handleScroll = () => {
+    if (!chatContainerRef.current) return;
+    const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+    setShowScrollBtn(scrollHeight - scrollTop - clientHeight > 200);
+  };
+
+  const scrollToBottom = () => messagesEnd.current?.scrollIntoView({ behavior: "smooth" });
 
   const loadConversations = async () => {
     const { data } = await supabase.from("conversations").select("id, title, last_active").order("last_active", { ascending: false }).limit(50);
@@ -193,7 +183,6 @@ const Chat = () => {
     abortControllerRef.current = controller;
     
     const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
-    // Check if the last user message has an image
     const lastMsg = msgs[msgs.length - 1];
     const msgImageUrl = lastMsg?.imageUrl || undefined;
     const resp = await fetch(CHAT_URL, {
@@ -249,9 +238,7 @@ const Chat = () => {
         }
       }
     } catch (err: any) {
-      if (err.name === "AbortError") {
-        // User stopped generation — keep what we have
-      } else throw err;
+      if (err.name === "AbortError") { /* User stopped */ } else throw err;
     }
 
     return assistantSoFar;
@@ -260,10 +247,12 @@ const Chat = () => {
   const sendMessage = async (overrideInput?: string) => {
     const text = overrideInput || input.trim();
     if (!text || isLoading) return;
-    const userMsg: Message = { role: "user", content: text };
+    const userMsg: Message = { role: "user", content: text, imageUrl: uploadedImageUrl || undefined };
     const newMsgs = [...messages, userMsg];
     setMessages(newMsgs);
     setInput("");
+    setUploadedImageUrl(null);
+    setUploadedImagePreview(null);
     setIsLoading(true);
 
     try {
@@ -288,7 +277,6 @@ const Chat = () => {
     setMessages(withoutLast);
     const lastUserMsg = withoutLast[withoutLast.length - 1];
     if (lastUserMsg?.role !== "user") return;
-    
     setIsLoading(true);
     try {
       const assistantText = await streamChat(withoutLast);
@@ -335,75 +323,51 @@ const Chat = () => {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); uploadedFile ? sendWithFile() : sendMessage(); }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
   };
 
-  const generateImage = async (prompt: string, model: string) => {
-    if (!prompt) return;
-    setIsLoading(true);
-    setShowImageGen(false);
-    const userMsg: Message = { role: "user", content: `🎨 إنشاء صورة: ${prompt}` };
-    setMessages((prev) => [...prev, userMsg]);
-    try {
-      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-image`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({ prompt, model }),
-      });
-      const data = await resp.json();
-      if (data.error) throw new Error(data.error);
-      const assistantMsg: Message = { role: "assistant", content: `تم إنشاء الصورة بنجاح! ✨`, imageUrl: data.imageUrl };
-      const finalMsgs = [...messages, userMsg, assistantMsg];
-      setMessages(finalMsgs);
-      await saveConversation(finalMsgs);
-    } catch (err: any) {
-      toast({ title: "خطأ في توليد الصورة", description: err.message, variant: "destructive" });
-    } finally { setIsLoading(false); setImagePrompt(""); }
-  };
-
-  const webSearch = async (query: string, engine: string) => {
-    if (!query) return;
-    setShowSearch(false);
-    const userMsg: Message = { role: "user", content: `🔍 بحث: ${query}` };
-    setMessages((prev) => [...prev, userMsg]);
-    setIsLoading(true);
-    try {
-      const resp = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/web-search`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
-        body: JSON.stringify({ query, engine }),
-      });
-      const data = await resp.json();
-      if (data.error) throw new Error(data.error);
-      const assistantMsg: Message = { role: "assistant", content: data.result };
-      const finalMsgs = [...messages, userMsg, assistantMsg];
-      setMessages(finalMsgs);
-      await saveConversation(finalMsgs);
-    } catch (err: any) {
-      toast({ title: "خطأ في البحث", description: err.message, variant: "destructive" });
-    } finally { setIsLoading(false); setSearchQuery(""); }
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+    
+    if (file.type.startsWith("image/")) {
+      // Upload image to storage for Optiic to read
+      const ext = file.name.split(".").pop();
+      const path = `chat/${user.id}/${Date.now()}.${ext}`;
+      const { error } = await supabase.storage.from("avatars").upload(path, file);
+      if (error) {
+        toast({ title: "خطأ", description: "فشل رفع الصورة", variant: "destructive" });
+        return;
+      }
+      const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
+      setUploadedImageUrl(publicUrl);
+      // Also show preview
+      const reader = new FileReader();
+      reader.onload = ev => setUploadedImagePreview(ev.target?.result as string);
+      reader.readAsDataURL(file);
+    } else {
+      // Text file
+      const text = await file.text().catch(() => null);
+      if (text) {
+        setInput(prev => prev + `\n📎 محتوى الملف "${file.name}":\n\`\`\`\n${text.slice(0, 5000)}\n\`\`\``);
+      } else {
+        toast({ title: "غير مدعوم", description: "هذا النوع من الملفات غير مدعوم حالياً", variant: "destructive" });
+      }
+    }
+    e.target.value = "";
   };
 
   const toggleRecording = () => {
-    if (isRecording) {
-      recognitionRef.current?.stop();
-      setIsRecording(false);
-      return;
-    }
+    if (isRecording) { recognitionRef.current?.stop(); setIsRecording(false); return; }
     const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-    if (!SpeechRecognition) {
-      toast({ title: "غير مدعوم", description: "متصفحك لا يدعم التعرف على الصوت. استخدم Chrome.", variant: "destructive" });
-      return;
-    }
+    if (!SpeechRecognition) { toast({ title: "غير مدعوم", description: "متصفحك لا يدعم التعرف على الصوت. استخدم Chrome.", variant: "destructive" }); return; }
     const recognition = new SpeechRecognition();
     recognition.lang = "ar-EG";
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.onresult = (event: any) => {
       let transcript = "";
-      for (let i = 0; i < event.results.length; i++) {
-        transcript += event.results[i][0].transcript;
-      }
+      for (let i = 0; i < event.results.length; i++) transcript += event.results[i][0].transcript;
       setInput(transcript);
     };
     recognition.onerror = () => setIsRecording(false);
@@ -413,69 +377,27 @@ const Chat = () => {
     setIsRecording(true);
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.type.startsWith("image/")) {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        setUploadedFile({ name: file.name, type: "image", preview: ev.target?.result as string });
-      };
-      reader.readAsDataURL(file);
-    } else {
-      const text = await file.text().catch(() => null);
-      if (text) {
-        setUploadedFile({ name: file.name, type: "text", preview: text.slice(0, 8000) });
-      } else {
-        toast({ title: "غير مدعوم", description: "هذا النوع من الملفات غير مدعوم حالياً", variant: "destructive" });
-      }
-    }
-    e.target.value = "";
-  };
-
-  const sendWithFile = async () => {
-    if (!uploadedFile && !input.trim()) return;
-    if (isLoading) return;
-
-    let userContent = input.trim();
-    let userImageUrl: string | undefined;
-
-    if (uploadedFile) {
-      if (uploadedFile.type === "image") {
-        userImageUrl = uploadedFile.preview;
-        userContent = userContent || `📎 صورة: ${uploadedFile.name}`;
-      } else {
-        const fileContent = `📎 محتوى الملف "${uploadedFile.name}":\n\`\`\`\n${uploadedFile.preview?.slice(0, 5000)}\n\`\`\``;
-        userContent = userContent ? `${userContent}\n\n${fileContent}` : fileContent;
-      }
-      setUploadedFile(null);
-    }
-
-    if (!userContent) return;
-    const userMsg: Message = { role: "user", content: userContent, imageUrl: userImageUrl };
-    const newMsgs = [...messages, userMsg];
-    setMessages(newMsgs);
-    setInput("");
-    setIsLoading(true);
-
-    try {
-      const assistantText = await streamChat(newMsgs);
-      if (assistantText) {
-        const finalMsgs = [...newMsgs, { role: "assistant" as const, content: assistantText }];
-        setMessages(finalMsgs);
-        await saveConversation(finalMsgs);
-      }
-    } catch (err: any) {
-      if (err.name !== "AbortError") toast({ title: "خطأ", description: err.message, variant: "destructive" });
-    } finally { setIsLoading(false); }
+  // YouTube embed detection
+  const renderYouTubeEmbed = (url: string) => {
+    const match = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+    if (!match) return null;
+    return (
+      <iframe
+        className="rounded-xl w-full aspect-video mt-2"
+        src={`https://www.youtube.com/embed/${match[1]}`}
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+      />
+    );
   };
 
   const avatarUrl = profile?.avatar_url;
   const displayName = profile?.display_name || "مستخدم";
   const isAdmin = role === "admin";
+  const currentModelInfo = ALL_MODELS.find(m => m.id === selectedModel);
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-background overflow-hidden">
       {/* Sidebar */}
       <div className={`fixed inset-y-0 right-0 z-40 w-72 bg-card/90 backdrop-blur-xl border-l border-border/40 transform transition-transform duration-300 ${sidebarOpen ? "translate-x-0" : "translate-x-full"} md:relative md:translate-x-0`}>
         <div className="flex flex-col h-full p-4">
@@ -521,22 +443,19 @@ const Chat = () => {
 
           {/* Bottom nav */}
           <div className="border-t border-border/40 pt-4 space-y-1">
-            <button onClick={() => navigate("/exams")} className="flex items-center gap-3 w-full rounded-xl px-3 py-2.5 hover:bg-secondary/60 transition-colors text-foreground">
-              <GraduationCap className="h-5 w-5 text-accent" />
-              <span className="text-sm">الاختبارات</span>
-            </button>
-            <button onClick={() => navigate("/forum")} className="flex items-center gap-3 w-full rounded-xl px-3 py-2.5 hover:bg-secondary/60 transition-colors text-foreground">
-              <UsersIcon className="h-5 w-5 text-primary" />
-              <span className="text-sm">منتدى الطلاب</span>
-            </button>
-            <button onClick={() => navigate("/messages")} className="flex items-center gap-3 w-full rounded-xl px-3 py-2.5 hover:bg-secondary/60 transition-colors text-foreground">
-              <MessageSquare className="h-5 w-5 text-accent" />
-              <span className="text-sm">المحادثات الخاصة</span>
-            </button>
-            <button onClick={() => navigate("/notifications")} className="flex items-center gap-3 w-full rounded-xl px-3 py-2.5 hover:bg-secondary/60 transition-colors text-foreground">
-              <Sparkles className="h-5 w-5 text-accent" />
-              <span className="text-sm">الإشعارات</span>
-            </button>
+            {[
+              { path: "/exams", icon: GraduationCap, label: "الاختبارات", color: "text-accent" },
+              { path: "/forum", icon: UsersIcon, label: "منتدى الطلاب", color: "text-primary" },
+              { path: "/messages", icon: MessageSquare, label: "المحادثات الخاصة", color: "text-accent" },
+              { path: "/notifications", icon: Bell, label: "الإشعارات", color: "text-accent" },
+              { path: "/stats", icon: BookOpen, label: "إحصائياتي", color: "text-primary" },
+              { path: "/books", icon: BookOpen, label: "قسم الكتب", color: "text-accent" },
+            ].map(item => (
+              <button key={item.path} onClick={() => navigate(item.path)} className="flex items-center gap-3 w-full rounded-xl px-3 py-2.5 hover:bg-secondary/60 transition-colors text-foreground">
+                <item.icon className={`h-5 w-5 ${item.color}`} />
+                <span className="text-sm">{item.label}</span>
+              </button>
+            ))}
             {isAdmin && (
               <button onClick={() => navigate("/admin")} className="flex items-center gap-3 w-full rounded-xl px-3 py-2.5 hover:bg-secondary/60 transition-colors text-foreground">
                 <Shield className="h-5 w-5 text-destructive" />
@@ -547,9 +466,7 @@ const Chat = () => {
               {avatarUrl ? (
                 <img src={avatarUrl} alt="" className="h-8 w-8 rounded-full object-cover border border-primary/30" />
               ) : (
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-primary text-sm font-bold">
-                  {displayName[0]}
-                </div>
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/20 text-primary text-sm font-bold">{displayName[0]}</div>
               )}
               <span className="text-sm text-foreground truncate">{displayName}</span>
             </button>
@@ -561,9 +478,9 @@ const Chat = () => {
       </div>
 
       {/* Main Chat */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-hidden">
         {/* Top bar - Sticky */}
-        <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 border-b border-border/40 glass-strong">
+        <div className="shrink-0 flex items-center justify-between px-4 py-3 border-b border-border/40 glass-strong z-20">
           <div className="flex items-center gap-3">
             <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setSidebarOpen(true)}>
               <Menu className="h-5 w-5" />
@@ -575,10 +492,9 @@ const Chat = () => {
               <span className="font-bold text-foreground text-glow-cyan">MENZO-AI</span>
             </div>
           </div>
-          {/* Model picker */}
           <div className="relative">
             <Button variant="outline" size="sm" onClick={() => setShowModelPicker(!showModelPicker)} className="border-border/60 text-foreground bg-secondary/50">
-              {ALL_MODELS.find((m) => m.id === selectedModel)?.label || "اختر نموذج"}
+              {currentModelInfo?.label || "اختر نموذج"}
               <ChevronDown className="mr-2 h-4 w-4" />
             </Button>
             {showModelPicker && (
@@ -593,7 +509,10 @@ const Chat = () => {
                           className={`w-full text-right rounded-lg px-3 py-2 text-sm transition-all ${
                             selectedModel === m.id ? "bg-primary/15 text-primary border border-primary/20" : "text-foreground hover:bg-secondary/60"
                           }`}>
-                          <div className="font-medium">{m.label}</div>
+                          <div className="font-medium flex items-center gap-1">
+                            {m.label}
+                            {m.deepThink && <span className="text-[10px] bg-accent/20 text-accent px-1.5 py-0.5 rounded-full">🧠 تفكير عميق</span>}
+                          </div>
                           <div className="text-xs text-muted-foreground">{m.desc}</div>
                         </button>
                       ))}
@@ -605,8 +524,8 @@ const Chat = () => {
           </div>
         </div>
 
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 py-6 scrollbar-hide">
+        {/* Messages - Scrollable */}
+        <div ref={chatContainerRef} onScroll={handleScroll} className="flex-1 overflow-y-auto px-4 py-6 scrollbar-hide">
           {messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <div className="flex h-24 w-24 items-center justify-center rounded-3xl bg-gradient-to-br from-primary/20 to-accent/20 mb-6 shadow-glow animate-float">
@@ -618,8 +537,8 @@ const Chat = () => {
               <p className="text-muted-foreground max-w-md text-sm mb-8">
                 كيف يمكنني مساعدتك اليوم؟ اسأل عن أي مادة أزهرية أو علمية
               </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl relative z-0">
-                {SUGGESTIONS.slice(0, 4).map((s, i) => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl">
+                {suggestions.map((s, i) => (
                   <button key={i} onClick={() => sendMessage(s)}
                     className="glass rounded-xl px-4 py-3 text-sm text-right text-foreground hover:border-primary/40 hover:bg-primary/5 transition-all">
                     {s}
@@ -636,9 +555,7 @@ const Chat = () => {
                       avatarUrl ? (
                         <img src={avatarUrl} alt="" className="h-8 w-8 rounded-full object-cover border border-accent/30" />
                       ) : (
-                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/20 text-accent">
-                          <User className="h-4 w-4" />
-                        </div>
+                        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/20 text-accent"><User className="h-4 w-4" /></div>
                       )
                     ) : (
                       <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-primary/30 to-accent/30 text-primary">
@@ -663,11 +580,50 @@ const Chat = () => {
                         {msg.imageUrl && (
                           <img src={msg.imageUrl} alt="uploaded" className="rounded-xl max-h-60 w-auto mb-2" />
                         )}
-                        <div className="prose prose-sm prose-invert max-w-none text-inherit [&_img]:rounded-xl [&_img]:max-h-80 [&_img]:w-auto">
-                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        <div className="prose prose-sm prose-invert max-w-none text-inherit
+                          [&_pre]:bg-background/40 [&_pre]:rounded-xl [&_pre]:p-3 [&_pre]:my-2 [&_pre]:overflow-x-auto [&_pre]:text-sm
+                          [&_code]:bg-background/30 [&_code]:rounded [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:text-primary [&_code]:text-sm
+                          [&_pre_code]:bg-transparent [&_pre_code]:p-0 [&_pre_code]:text-foreground
+                          [&_a]:text-primary [&_a]:underline [&_a]:break-all
+                          [&_img]:rounded-xl [&_img]:max-h-80 [&_img]:w-auto
+                          [&_h3]:text-primary [&_h3]:mt-4 [&_h3]:mb-2
+                          [&_blockquote]:border-primary/40 [&_blockquote]:bg-primary/5 [&_blockquote]:rounded-lg [&_blockquote]:px-4 [&_blockquote]:py-2">
+                          <ReactMarkdown
+                            components={{
+                              a: ({ href, children }) => {
+                                const ytEmbed = href ? renderYouTubeEmbed(href) : null;
+                                return (
+                                  <>
+                                    <a href={href} target="_blank" rel="noopener noreferrer" className="text-primary underline hover:text-primary/80">
+                                      🔗 {children}
+                                    </a>
+                                    {ytEmbed}
+                                  </>
+                                );
+                              },
+                              code: ({ className, children, ...props }) => {
+                                const isInline = !className;
+                                if (isInline) {
+                                  return <code className="bg-background/30 rounded px-1.5 py-0.5 text-primary text-sm font-mono">{children}</code>;
+                                }
+                                return (
+                                  <div className="relative group/code">
+                                    <button
+                                      onClick={() => navigator.clipboard.writeText(String(children))}
+                                      className="absolute top-2 left-2 opacity-0 group-hover/code:opacity-100 transition-opacity bg-primary/20 hover:bg-primary/30 rounded px-2 py-1 text-[10px] text-primary"
+                                    >
+                                      نسخ
+                                    </button>
+                                    <code className={className} {...props}>{children}</code>
+                                  </div>
+                                );
+                              },
+                            }}
+                          >{msg.content}</ReactMarkdown>
                         </div>
                       </>
                     )}
+                    {/* Action buttons under message */}
                     {editingMsgIdx !== i && (
                       <div className={`flex items-center gap-1 mt-2 opacity-0 group-hover:opacity-100 transition-opacity ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                         {msg.role === "user" && (
@@ -707,78 +663,37 @@ const Chat = () => {
           )}
         </div>
 
-        {/* Image Generation Dialog */}
-        {showImageGen && (
-          <div className="border-t border-border/40 p-4 glass-strong">
-            <div className="max-w-3xl mx-auto">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-foreground flex items-center gap-2"><Image className="h-4 w-4 text-accent" /> إنشاء صورة</h3>
-                <button onClick={() => setShowImageGen(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
-              </div>
-              <div className="flex gap-2 mb-3 flex-wrap">
-                {IMAGE_MODELS.map(m => (
-                  <button key={m.id} onClick={() => setSelectedImageModel(m.id)}
-                    className={`rounded-lg px-3 py-1.5 text-xs transition-all ${selectedImageModel === m.id ? "bg-primary/15 text-primary border border-primary/30" : "bg-secondary/50 text-muted-foreground hover:text-foreground"}`}>
-                    {m.label}
-                  </button>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <input value={imagePrompt} onChange={e => setImagePrompt(e.target.value)} placeholder="صف الصورة بالتفصيل..."
-                  className="flex-1 bg-secondary/50 rounded-xl px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none border border-border/30 focus:border-primary/50"
-                  onKeyDown={e => e.key === "Enter" && generateImage(imagePrompt, selectedImageModel)} />
-                <Button size="sm" onClick={() => generateImage(imagePrompt, selectedImageModel)} disabled={!imagePrompt.trim() || isLoading}
-                  className="bg-primary text-primary-foreground">إنشاء</Button>
-              </div>
+        {/* Scroll to bottom button */}
+        {showScrollBtn && (
+          <button onClick={scrollToBottom}
+            className="absolute bottom-24 left-1/2 -translate-x-1/2 z-10 h-10 w-10 rounded-full bg-primary text-primary-foreground shadow-glow flex items-center justify-center">
+            <ChevronDown className="h-5 w-5" />
+          </button>
+        )}
+
+        {/* Image preview */}
+        {uploadedImagePreview && (
+          <div className="shrink-0 px-4 py-2 border-t border-border/40 glass-strong">
+            <div className="flex items-center gap-2">
+              <img src={uploadedImagePreview} alt="" className="h-16 w-16 rounded-lg object-cover" />
+              <button onClick={() => { setUploadedImageUrl(null); setUploadedImagePreview(null); }} className="text-destructive">
+                <X className="h-4 w-4" />
+              </button>
             </div>
           </div>
         )}
 
-        {/* Search Dialog */}
-        {showSearch && (
-          <div className="border-t border-border/40 p-4 glass-strong">
-            <div className="max-w-3xl mx-auto">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-foreground flex items-center gap-2"><Search className="h-4 w-4 text-primary" /> بحث في الإنترنت</h3>
-                <button onClick={() => setShowSearch(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
-              </div>
-              <div className="flex gap-2 mb-3 flex-wrap">
-                {SEARCH_ENGINES.map(e => (
-                  <button key={e.id} onClick={() => setSelectedSearchEngine(e.id)}
-                    className={`rounded-lg px-3 py-1.5 text-xs transition-all ${selectedSearchEngine === e.id ? "bg-primary/15 text-primary border border-primary/30" : "bg-secondary/50 text-muted-foreground hover:text-foreground"}`}>
-                    {e.label}
-                  </button>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="ابحث عن أي شيء..."
-                  className="flex-1 bg-secondary/50 rounded-xl px-4 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none border border-border/30 focus:border-primary/50"
-                  onKeyDown={e => e.key === "Enter" && webSearch(searchQuery, selectedSearchEngine)} />
-                <Button size="sm" onClick={() => webSearch(searchQuery, selectedSearchEngine)} disabled={!searchQuery.trim() || isLoading}
-                  className="bg-primary text-primary-foreground">بحث</Button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Input - Sticky bottom */}
-        <div className="sticky bottom-0 border-t border-border/40 p-4 glass-strong">
+        {/* Input - Fixed bottom */}
+        <div className="shrink-0 border-t border-border/40 p-4 glass-strong">
           <div className="max-w-3xl mx-auto">
-            {uploadedFile && (
-              <div className="mb-2 flex items-center gap-2 rounded-xl bg-secondary/60 border border-border/30 px-3 py-2">
-                {uploadedFile.type === "image" && uploadedFile.preview && (
-                  <img src={uploadedFile.preview} alt="" className="h-12 w-12 rounded-lg object-cover" />
-                )}
-                {uploadedFile.type === "text" && (
-                  <Paperclip className="h-5 w-5 text-primary shrink-0" />
-                )}
-                <span className="text-sm text-foreground truncate flex-1">{uploadedFile.name}</span>
-                <button onClick={() => setUploadedFile(null)} className="text-muted-foreground hover:text-destructive">
-                  <X className="h-4 w-4" />
-                </button>
+            {isLoading && (
+              <div className="flex justify-center mb-2">
+                <Button variant="outline" size="sm" onClick={stopGeneration} className="border-destructive/30 text-destructive text-xs">
+                  <Square className="h-3 w-3 ml-1" /> إيقاف التوليد
+                </Button>
               </div>
             )}
-            <div className="flex items-end gap-2 rounded-2xl glass-strong p-2 border border-border/30">
+            <div className="flex items-end gap-2">
               <div className="relative">
                 <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-primary shrink-0" onClick={() => setShowPlus(!showPlus)}>
                   <Plus className="h-5 w-5" />
@@ -786,54 +701,42 @@ const Chat = () => {
                 {showPlus && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowPlus(false)} />
-                    <div className="absolute bottom-full right-0 mb-2 w-52 rounded-xl glass-strong border border-border/40 p-2 z-50">
-                      <button onClick={() => { setShowPlus(false); setShowImageGen(true); }}
-                        className="flex items-center gap-2 w-full rounded-lg px-3 py-2.5 text-sm text-foreground hover:bg-secondary/60 transition-colors">
-                        <Image className="h-4 w-4 text-accent" /> توليد صورة
-                      </button>
-                      <button onClick={() => { setShowPlus(false); setShowSearch(true); }}
-                        className="flex items-center gap-2 w-full rounded-lg px-3 py-2.5 text-sm text-foreground hover:bg-secondary/60 transition-colors">
-                        <Search className="h-4 w-4 text-primary" /> بحث في الإنترنت
-                      </button>
+                    <div className="absolute bottom-full right-0 mb-2 w-48 rounded-xl glass-strong border border-border/40 p-2 z-50">
                       <button onClick={() => { setShowPlus(false); fileInputRef.current?.click(); }}
                         className="flex items-center gap-2 w-full rounded-lg px-3 py-2.5 text-sm text-foreground hover:bg-secondary/60 transition-colors">
-                        <Paperclip className="h-4 w-4 text-muted-foreground" /> رفع ملف أو صورة
+                        <Image className="h-4 w-4 text-accent" /> رفع صورة / ملف
                       </button>
                     </div>
                   </>
                 )}
               </div>
-              <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.txt,.pdf,.md,.csv,.json,.doc,.docx" onChange={handleFileUpload} />
-              <textarea ref={inputRef} value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={handleKeyDown}
-                placeholder="اسأل عن أي شيء..." rows={1}
-                className="flex-1 resize-none bg-transparent text-foreground placeholder:text-muted-foreground outline-none py-2 px-2 max-h-32"
-                style={{ minHeight: "40px" }} />
-              <Button variant="ghost" size="icon" onClick={toggleRecording}
-                className={`shrink-0 ${isRecording ? "text-destructive animate-pulse" : "text-muted-foreground hover:text-primary"}`}>
-                {isRecording ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
-              </Button>
-              {isLoading ? (
-                <Button onClick={stopGeneration} size="icon"
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90 shrink-0 rounded-xl">
-                  <Square className="h-4 w-4" />
+              <input type="file" ref={fileInputRef} className="hidden" accept="image/*,.txt,.pdf,.md,.json,.csv,.py,.js,.ts" onChange={handleFileUpload} />
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="اكتب رسالتك..."
+                className="flex-1 resize-none bg-secondary/50 rounded-xl px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none border border-border/30 focus:border-primary/50 max-h-32"
+                rows={1}
+              />
+              {isRecording ? (
+                <Button variant="ghost" size="icon" onClick={toggleRecording} className="text-destructive animate-pulse shrink-0">
+                  <MicOff className="h-5 w-5" />
                 </Button>
               ) : (
-                <Button onClick={() => uploadedFile ? sendWithFile() : sendMessage()} disabled={!input.trim() && !uploadedFile} size="icon"
-                  className="bg-gradient-to-r from-primary to-accent text-primary-foreground hover:opacity-90 shrink-0 rounded-xl shadow-glow">
-                  <Send className="h-4 w-4" />
+                <Button variant="ghost" size="icon" onClick={toggleRecording} className="text-muted-foreground hover:text-primary shrink-0">
+                  <Mic className="h-5 w-5" />
                 </Button>
               )}
+              <Button onClick={() => sendMessage()} disabled={isLoading || (!input.trim() && !uploadedImageUrl)} size="icon"
+                className="bg-primary text-primary-foreground shadow-glow shrink-0 rounded-xl">
+                <Send className="h-4 w-4" />
+              </Button>
             </div>
-            <p className="text-center text-[10px] text-muted-foreground mt-2">
-              MENZO-AI — معلمك الذكي للأزهر الشريف | {ALL_MODELS.find(m => m.id === selectedModel)?.label}
-            </p>
           </div>
         </div>
       </div>
-
-      {sidebarOpen && (
-        <div className="fixed inset-0 bg-background/60 backdrop-blur-sm z-30 md:hidden" onClick={() => setSidebarOpen(false)} />
-      )}
     </div>
   );
 };

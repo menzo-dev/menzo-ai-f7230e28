@@ -30,23 +30,46 @@ function getProviderConfig(model: string) {
   return { url: "https://ai.gateway.lovable.dev/v1/chat/completions", key: Deno.env.get("LOVABLE_API_KEY")!, model: model || "google/gemini-3-flash-preview" };
 }
 
-// Optiic image analysis
+// Optiic image analysis - improved
 async function analyzeImageWithOptiic(imageUrl: string): Promise<string> {
   const OPTIIC_API_KEY = Deno.env.get("OPTIIC_API_KEY");
-  if (!OPTIIC_API_KEY) return "";
+  if (!OPTIIC_API_KEY) {
+    console.error("OPTIIC_API_KEY not set");
+    return "";
+  }
   
   try {
+    // Try OCR first
     const resp = await fetch("https://api.optiic.dev/process", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ apiKey: OPTIIC_API_KEY, url: imageUrl, mode: "ocr" }),
     });
     if (!resp.ok) {
-      console.error("Optiic error:", resp.status);
+      console.error("Optiic error:", resp.status, await resp.text());
       return "";
     }
     const data = await resp.json();
-    return data.text || "";
+    const ocrText = data.text || "";
+    
+    // Also try to get image description
+    let description = "";
+    try {
+      const descResp = await fetch("https://api.optiic.dev/process", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey: OPTIIC_API_KEY, url: imageUrl, mode: "describe" }),
+      });
+      if (descResp.ok) {
+        const descData = await descResp.json();
+        description = descData.description || descData.text || "";
+      }
+    } catch { /* ignore description errors */ }
+    
+    let result = "";
+    if (ocrText.trim()) result += `نص مستخرج من الصورة (OCR):\n${ocrText}`;
+    if (description.trim()) result += `${result ? "\n\n" : ""}وصف الصورة:\n${description}`;
+    return result;
   } catch (e) {
     console.error("Optiic failed:", e);
     return "";
@@ -69,58 +92,46 @@ serve(async (req) => {
     // If there's an image URL, analyze it with Optiic and add context
     let imageContext = "";
     if (imageUrl) {
-      const ocrText = await analyzeImageWithOptiic(imageUrl);
-      if (ocrText) {
-        imageContext = `\n\n[الطالب أرفق صورة وهذا محتواها النصي المستخرج بواسطة OCR:\n${ocrText}\n]\nقم بتحليل هذا المحتوى والرد عليه بما يناسب سياق المحادثة.`;
+      console.log("Analyzing image:", imageUrl.substring(0, 100));
+      const analysisResult = await analyzeImageWithOptiic(imageUrl);
+      if (analysisResult) {
+        imageContext = `\n\n[الطالب أرفق صورة وهذا تحليلها:\n${analysisResult}\n]\nقم بتحليل هذا المحتوى والرد عليه بما يناسب سياق المحادثة. إذا كانت الصورة تحتوي على سؤال أو مسألة، قم بحلها خطوة بخطوة.`;
+      } else {
+        imageContext = "\n\n[الطالب أرفق صورة لكن لم نتمكن من قراءة محتواها. اطلب منه وصف محتوى الصورة أو كتابة السؤال نصياً.]";
       }
     }
 
     const userContext = userName ? `\n\nاسم الطالب الحالي: ${userName}${userBio ? `\nوصف الطالب: ${userBio}` : ""}` : "";
 
     const systemPrompt = `أنت MENZO-AI، معلم ذكي متخصص في تدريس طلاب الصف الثالث الثانوي الأزهري (مذهب شافعي).
-أنت مُعدّ ومطوّر بواسطة Mohamed Walid El-manzlawy (محمد وليد المنزلاوي).
+أنت مُعدّ ومطوّر بواسطة Mohamed Walid El-manzlawy (محمد وليد المنزلاوي) — هو المطور وليس أستاذ.
 الطالب يدرس عند أساتذة متميزين منهم أ/محمد حجازي (شرعي) وأ/وليد الشيخ (عربي).
 
-أنت الآن خبير منهج الأزهر الشريف للصف الثالث الثانوي ومختص في الشرح، التلخيص، توليد الأسئلة، ومحاكاة الامتحانات الرسمية.
+مهمتك: شرح، تلخيص، وضع أسئلة، إعداد امتحانات محاكاة بالاعتماد الحصري على الكتب الرسمية المعتمدة من الأزهر للصف الثالث الثانوي.
 
-مهمتك: شرح، تلخيص، وضع أسئلة، إعداد امتحانات محاكاة بالاعتماد الحصري على الكتب الرسمية المعتمدة من الأزهر للصف الثالث الثانوي، مع الاستعانة فقط بكتب الدعم الرسمية مثل المرشد – سلاح الأزهري.
-
-📚 الكتب الأساسية الرسمية للصف الثالث الثانوي الأزهري:
+📚 الكتب الأساسية الرسمية:
 🔹 القرآن وعلومه: القرآن الكريم، التفسير الموضوعي، الحديث الشريف
-🔹 الفقه والعقيدة: الإقناع، شرح الإقناع، جوهرة التوحيد، شرح جوهرة التوحيد (المذهب الشافعي)
-🔹 اللغة العربية: ألفية ابن مالك، شرح ابن عقيل، شذا العرف في فن الصرف، البلاغة الواضحة، الأدب والنصوص
-📘 كتب الدعم الرسمية: المرشد في مناهج الأزهر، سلاح الأزهري
+🔹 الفقه والعقيدة: الإقناع وشرحه، جوهرة التوحيد وشرحها (المذهب الشافعي)
+🔹 اللغة العربية: ألفية ابن مالك، شرح ابن عقيل، شذا العرف، البلاغة الواضحة، الأدب والنصوص
+📘 كتب الدعم: المرشد في مناهج الأزهر، سلاح الأزهري
 
-تخصصاتك: الفقه الإسلامي (المذهب الشافعي أولاً)، الحديث الشريف (متن وسند ودراية)، التفسير (جلالين/بيضاوي)، أصول الفقه، التوحيد والعقيدة، النحو (ألفية ابن مالك)، الصرف، البلاغة (معاني/بيان/بديع)، الأدب العربي، النصوص، المطالعة، الفيزياء، الكيمياء، الأحياء، الرياضيات (استاتيكا، ديناميكا، جبر، هندسة فراغية، تفاضل وتكامل).
+تخصصاتك: الفقه (شافعي أولاً)، الحديث، التفسير، أصول الفقه، التوحيد، النحو، الصرف، البلاغة، الأدب، النصوص، المطالعة، الفيزياء، الكيمياء، الأحياء، الرياضيات (استاتيكا، ديناميكا، جبر، هندسة فراغية، تفاضل وتكامل).
 
-🎯 قواعد العمل:
-1. لا تستخدم أي مصدر خارج الكتب الرسمية وكتب الدعم المذكورة
-2. جميع الشروحات والأسئلة يجب أن تكون مطابقة لصياغة امتحانات الأزهر الرسمية
-3. التركيز على أنماط الأسئلة المتكررة والموضوعات التي تظهر كل سنة والمصطلحات الرسمية الصحيحة
-4. عند توليد الأسئلة: التزم بتركيب الامتحان الرسمي للأزهر، أضف درجات لكل سؤال وطريقة التصحيح
-5. عند الشرح: ابدأ بصياغة الكتاب مباشرة ثم ابسط دون تغيير المعنى
-
-📐 قواعد كتابة المعادلات والقوانين:
-- اكتب جميع المعادلات الرياضية والقوانين الفيزيائية داخل code blocks باستخدام \`\`\` حتى يتمكن الطالب من نسخها بسهولة
-- مثال: \`\`\`V = I × R\`\`\`
-- لا تستخدم رموز LaTeX مثل $ أو \\( \\) لأنها لن تعرض بشكل صحيح
-
-قواعدك الذهبية:
-1. تحدث بالعربية الفصحى مع تبسيط واضح
-2. استشهد بالآيات القرآنية والأحاديث النبوية
-3. اربط كل إجابة بالمنهج الأزهري المقرر والمذاكرة
-4. قدم أمثلة عملية وأسئلة تدريبية
-5. شجّع الطالب دائماً وكن صبوراً وحريصاً عليه
-6. استخدم تنسيق Markdown لتنظيم الإجابات
-7. إذا سُئلت عن شيء خارج التعليم، وجّه المحادثة للفائدة العلمية واربطها بالمذاكرة
-8. قدم المعلومة من المصادر المعتمدة في الأزهر
-9. في نهاية كل إجابة، اقترح 2-3 أسئلة متعلقة يمكن للطالب الإجابة عليها
-10. عند بداية المحادثة، رحّب بالطالب باسمه إن كان معروفاً
-11. عند كتابة معادلات رياضية أو قوانين فيزيائية، استخدم code blocks لضمان وضوحها وإمكانية النسخ
-12. عند كتابة روابط، اجعلها واضحة بتنسيق Markdown
-13. ذكّر الطالب دائماً بأهمية المذاكرة والمراجعة المستمرة
-14. امتحانات الأزهر يوم 6/6/2026 — حفّز الطالب وذكّره بالوقت المتبقي
-15. في الفقه التزم بالمذهب الشافعي إلا إذا طلب الطالب مذهباً آخر${userContext}${imageContext}`;
+🎯 قواعد كتابة المحتوى:
+1. اكتب بالعربية الفصحى مع تبسيط واضح
+2. **المعادلات والقوانين**: اكتبها دائماً داخل code blocks حتى تظهر بشكل واضح ويسهل نسخها:
+   - استخدم \`\`\` لكتابة القوانين مثل: \`\`\`V = I × R\`\`\`
+   - لا تستخدم أبداً رموز LaTeX مثل $ أو \\( \\)
+3. **الروابط**: اكتبها بتنسيق Markdown الواضح: [نص الرابط](URL)
+4. إذا ذكرت رابط يوتيوب، اكتبه كرابط قابل للنقر
+5. نسّق الإجابة بـ Markdown مع عناوين واضحة (### ) ونقاط (- ) وتمييز (**bold**)
+6. في نهاية كل إجابة اقترح 2-3 أسئلة متعلقة
+7. رحّب بالطالب باسمه إن كان معروفاً
+8. ذكّره بأهمية المذاكرة — امتحانات الأزهر يوم 6/6/2026
+9. في الفقه التزم بالمذهب الشافعي
+10. استشهد بالآيات والأحاديث
+11. إذا طُلب منك البحث عن شيء: ابحث وقدم إجابة شاملة مع المصادر
+12. إذا طُلب منك إنشاء صورة: وضّح أنك ستنشئ الصورة${userContext}${imageContext}`;
 
     // Anthropic
     if ((config as any).isAnthropic) {
@@ -130,8 +141,17 @@ serve(async (req) => {
         body: JSON.stringify({ model: config.model, max_tokens: 4096, system: systemPrompt, messages: messages.map((m: any) => ({ role: m.role, content: m.content })), stream: true }),
       });
       if (!response.ok) {
-        const t = await response.text();
-        console.error("Anthropic error:", response.status, t);
+        console.error("Anthropic error:", response.status, await response.text());
+        // Fallback
+        const fallbackKey = Deno.env.get("LOVABLE_API_KEY");
+        if (fallbackKey) {
+          const fbResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${fallbackKey}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ model: "google/gemini-3-flash-preview", messages: [{ role: "system", content: systemPrompt }, ...messages], stream: true }),
+          });
+          if (fbResp.ok) return new Response(fbResp.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
+        }
         return new Response(JSON.stringify({ error: "خطأ في الاتصال بـ Claude" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       const { readable, writable } = new TransformStream();
@@ -174,8 +194,16 @@ serve(async (req) => {
         body: JSON.stringify({ inputs: systemPrompt + "\n\n" + messages.map((m: any) => `${m.role}: ${m.content}`).join("\n"), parameters: { max_new_tokens: 2048, temperature: 0.7 } }),
       });
       if (!response.ok) {
-        const t = await response.text();
-        console.error("HuggingFace error:", response.status, t);
+        console.error("HuggingFace error:", response.status);
+        const fallbackKey = Deno.env.get("LOVABLE_API_KEY");
+        if (fallbackKey) {
+          const fbResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${fallbackKey}`, "Content-Type": "application/json" },
+            body: JSON.stringify({ model: "google/gemini-3-flash-preview", messages: [{ role: "system", content: systemPrompt }, ...messages], stream: true }),
+          });
+          if (fbResp.ok) return new Response(fbResp.body, { headers: { ...corsHeaders, "Content-Type": "text/event-stream" } });
+        }
         return new Response(JSON.stringify({ error: "خطأ في الاتصال بـ HuggingFace" }), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
       }
       const data = await response.json();
@@ -196,7 +224,7 @@ serve(async (req) => {
       body: JSON.stringify({ model: config.model, messages: allMessages, stream: true }),
     });
 
-    // If any non-Lovable provider fails, fallback to Lovable AI gateway
+    // Universal fallback for any non-Lovable provider failure
     if (!response.ok) {
       const isLovableGateway = config.url.includes("ai.gateway.lovable.dev");
       if (!isLovableGateway) {
