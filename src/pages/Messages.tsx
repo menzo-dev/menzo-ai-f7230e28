@@ -102,6 +102,21 @@ const Messages = () => {
     if (user) loadFriends();
   }, [user]);
 
+  // Subscribe to friend requests notifications
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel("friend-requests")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "friend_requests" }, (payload: any) => {
+        if (payload.new.receiver_id === user.id) {
+          playNotificationSound();
+          loadFriends();
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
+
   useEffect(() => {
     if (selectedFriend && user) {
       loadMessages(selectedFriend.id);
@@ -121,7 +136,9 @@ const Messages = () => {
             (msg.sender_id === user.id && msg.receiver_id === selectedFriend.id)
           ) {
             setMessages(prev => [...prev, msg]);
+            // Play notification sound for incoming messages
             if (msg.sender_id === selectedFriend.id) {
+              playNotificationSound();
               supabase.from("private_messages").update({ is_read: true }).eq("id", msg.id);
             }
           }

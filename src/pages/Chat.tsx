@@ -8,7 +8,8 @@ import {
   Send, Plus, Bot, User, LogOut, Trash2, Image, Search,
   Menu, X, MessageSquare, Sparkles, ChevronDown, GraduationCap,
   Mic, MicOff, Paperclip, Edit3, Copy, Check, RotateCcw,
-  Users as UsersIcon, Shield, Square, Settings, BookOpen, Bell, Mail
+  Users as UsersIcon, Shield, Square, Settings, BookOpen, Bell, Mail,
+  Brain, Wand2, Globe
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -108,6 +109,7 @@ const Chat = () => {
   const [editingConvTitle, setEditingConvTitle] = useState("");
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [deepThinking, setDeepThinking] = useState(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const messagesEnd = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -178,13 +180,17 @@ const Chat = () => {
     setIsLoading(false);
   };
 
-  const streamChat = async (msgs: Message[]) => {
+  const streamChat = async (msgs: Message[], searchQuery?: string) => {
     const controller = new AbortController();
     abortControllerRef.current = controller;
     
     const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/chat`;
     const lastMsg = msgs[msgs.length - 1];
     const msgImageUrl = lastMsg?.imageUrl || undefined;
+    
+    // Check if user wants search
+    const needsSearch = searchQuery || /ابحث|بحث|google|google/i.test(lastMsg?.content || "");
+    
     const resp = await fetch(CHAT_URL, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}` },
@@ -194,6 +200,8 @@ const Chat = () => {
         userName: profile?.display_name,
         userBio: profile?.bio,
         imageUrl: msgImageUrl,
+        deepThink: deepThinking,
+        searchQuery: needsSearch ? searchQuery : null,
       }),
       signal: controller.signal,
     });
@@ -449,7 +457,7 @@ const Chat = () => {
               { path: "/messages", icon: MessageSquare, label: "المحادثات الخاصة", color: "text-accent" },
               { path: "/notifications", icon: Bell, label: "الإشعارات", color: "text-accent" },
               { path: "/stats", icon: BookOpen, label: "إحصائياتي", color: "text-primary" },
-              { path: "/books", icon: BookOpen, label: "قسم الكتب", color: "text-accent" },
+              { path: "/books", icon: Settings, label: "قسم الكتب", color: "text-accent" },
             ].map(item => (
               <button key={item.path} onClick={() => navigate(item.path)} className="flex items-center gap-3 w-full rounded-xl px-3 py-2.5 hover:bg-secondary/60 transition-colors text-foreground">
                 <item.icon className={`h-5 w-5 ${item.color}`} />
@@ -701,10 +709,24 @@ const Chat = () => {
                 {showPlus && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowPlus(false)} />
-                    <div className="absolute bottom-full right-0 mb-2 w-48 rounded-xl glass-strong border border-border/40 p-2 z-50">
+                    <div className="absolute bottom-full right-0 mb-2 w-56 rounded-xl glass-strong border border-border/40 p-2 z-50 space-y-1">
                       <button onClick={() => { setShowPlus(false); fileInputRef.current?.click(); }}
                         className="flex items-center gap-2 w-full rounded-lg px-3 py-2.5 text-sm text-foreground hover:bg-secondary/60 transition-colors">
                         <Image className="h-4 w-4 text-accent" /> رفع صورة / ملف
+                      </button>
+                      {currentModelInfo?.deepThink && (
+                        <button onClick={() => { setDeepThinking(!deepThinking); setShowPlus(false); }}
+                          className={`flex items-center gap-2 w-full rounded-lg px-3 py-2.5 text-sm transition-colors ${deepThinking ? "bg-primary/20 text-primary" : "text-foreground hover:bg-secondary/60"}`}>
+                          <Brain className="h-4 w-4" /> 🧠 التفكير العميق
+                        </button>
+                      )}
+                      <button onClick={() => { setShowPlus(false); /* TODO: Search */ }}
+                        className="flex items-center gap-2 w-full rounded-lg px-3 py-2.5 text-sm text-foreground hover:bg-secondary/60 transition-colors">
+                        <Search className="h-4 w-4 text-primary" /> 🔍 بحث
+                      </button>
+                      <button onClick={() => { setShowPlus(false); /* TODO: Image generation */ }}
+                        className="flex items-center gap-2 w-full rounded-lg px-3 py-2.5 text-sm text-foreground hover:bg-secondary/60 transition-colors">
+                        <Wand2 className="h-4 w-4 text-purple-500" /> 🎨 إنشاء صورة
                       </button>
                     </div>
                   </>

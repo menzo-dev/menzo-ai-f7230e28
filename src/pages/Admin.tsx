@@ -80,6 +80,34 @@ const Admin = () => {
   const [newBookSubject, setNewBookSubject] = useState("");
   const [newBookFile, setNewBookFile] = useState<File | null>(null);
 
+  // API Keys from settings
+  const [apiKeys, setApiKeys] = useState<Record<string, string>>({
+    OPTIIC_API_KEY: "",
+    TAVILY_API_KEY: "",
+    EXA_API_KEY: "",
+    LEONARDO_API_KEY: "",
+    FIRECRAWL_API_KEY: "",
+    GROQ_API_KEY: "",
+    GPT_API_KEY: "",
+    GEMINI_API_KEY: "",
+  });
+  const [apiKeyStatus, setApiKeyStatus] = useState<Record<string, "idle" | "saving" | "success" | "error">({});
+
+  // Load API keys from settings on mount
+  useEffect(() => {
+    const loadApiKeys = async () => {
+      const { data } = await supabase.from("settings").select("key, value");
+      if (data) {
+        const keys: Record<string, string> = {};
+        data.forEach((item: any) => {
+          if (item.key.endsWith("_API_KEY")) keys[item.key] = item.value || "";
+        });
+        setApiKeys(prev => ({ ...prev, ...keys }));
+      }
+    };
+    loadApiKeys();
+  }, []);
+
   useEffect(() => { checkAdmin(); }, [user]);
 
   const checkAdmin = async () => {
@@ -90,6 +118,22 @@ const Admin = () => {
       toast({ title: "غير مصرح", description: "ليس لديك صلاحيات الإدارة", variant: "destructive" });
     }
     setLoading(false);
+  };
+
+  // Save API key to settings
+  const saveApiKey = async (key: string, value: string) => {
+    setApiKeyStatus(prev => ({ ...prev, [key]: "saving" }));
+    try {
+      const { error } = await supabase.from("settings").upsert({ key, value }, { onConflict: "key" });
+      if (error) throw error;
+      setApiKeys(prev => ({ ...prev, [key]: value }));
+      setApiKeyStatus(prev => ({ ...prev, [key]: "success" }));
+      toast({ title: "تم", description: `تم حفظ ${key} بنجاح` });
+      setTimeout(() => setApiKeyStatus(prev => ({ ...prev, [key]: "idle" })), 2000);
+    } catch (err: any) {
+      setApiKeyStatus(prev => ({ ...prev, [key]: "error" }));
+      toast({ title: "خطأ", description: err.message, variant: "destructive" });
+    }
   };
 
   const loadAdminData = async () => {
@@ -770,11 +814,24 @@ const Admin = () => {
                       <span className="text-xs font-bold text-foreground">{api.label}</span>
                       <span className="text-[10px] text-muted-foreground block">{api.desc}</span>
                     </div>
-                    <input type="password" placeholder="أدخل المفتاح..." 
+                    <input 
+                      type="password" 
+                      placeholder="أدخل المفتاح..." 
                       className="flex-1 bg-secondary/50 rounded-lg px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground outline-none border border-border/30 focus:border-primary/50"
-                      defaultValue={""}
+                      value={apiKeys[api.key] || ""}
+                      onChange={(e) => setApiKeys(prev => ({ ...prev, [api.key]: e.target.value }))}
                     />
-                    <button className="px-3 py-1.5 bg-primary/20 text-primary text-xs rounded-lg hover:bg-primary/30">حفظ</button>
+                    <button 
+                      onClick={() => saveApiKey(api.key, apiKeys[api.key] || "")}
+                      disabled={apiKeyStatus[api.key] === "saving"}
+                      className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                        apiKeyStatus[api.key] === "success" ? "bg-green-500/20 text-green-500" 
+                        : apiKeyStatus[api.key] === "error" ? "bg-red-500/20 text-red-500"
+                        : "bg-primary/20 text-primary hover:bg-primary/30"
+                      }`}
+                    >
+                      {apiKeyStatus[api.key] === "saving" ? "..." : apiKeyStatus[api.key] === "success" ? "✓" : "حفظ"}
+                    </button>
                   </div>
                 ))}
               </div>
