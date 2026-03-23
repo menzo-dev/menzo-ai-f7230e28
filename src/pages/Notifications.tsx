@@ -59,9 +59,11 @@ const Notifications = () => {
   }, [soundEnabled]);
 
   const loadNotifications = async () => {
+    if (!user) return;
     const { data } = await supabase
       .from("notifications")
       .select("*")
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(100);
     if (data) setNotifications(data as Notification[]);
@@ -69,7 +71,7 @@ const Notifications = () => {
   };
 
   const markAsRead = async (id: string) => {
-    await supabase.from("notifications").update({ is_read: true }).eq("id", id);
+    await supabase.from("notifications").update({ is_read: true }).eq("id", id).eq("user_id", user?.id);
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
   };
 
@@ -77,17 +79,15 @@ const Notifications = () => {
     const unread = notifications.filter(n => !n.is_read);
     if (unread.length === 0) return;
     for (const n of unread) {
-      await supabase.from("notifications").update({ is_read: true }).eq("id", n.id);
+      await supabase.from("notifications").update({ is_read: true }).eq("id", n.id).eq("user_id", user?.id);
     }
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
   };
 
   const deleteAllNotifications = async () => {
+    if (!user) return;
     if (!confirm("هل تريد حذف جميع الإشعارات؟")) return;
-    // Delete user's notifications (where user_id matches or is null for broadcasts)
-    if (user) {
-      await supabase.from("notifications").delete().eq("user_id", user.id);
-    }
+    await supabase.from("notifications").delete().eq("user_id", user.id);
     setNotifications([]);
     toast({ title: "تم", description: "تم حذف جميع الإشعارات" });
   };

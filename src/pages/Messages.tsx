@@ -91,6 +91,7 @@ const Messages = () => {
   const [newGroupMembers, setNewGroupMembers] = useState<string[]>([]);
   const [showFriendsList, setShowFriendsList] = useState(false);
   const [activeTab, setActiveTab] = useState<"friends" | "groups">("friends");
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -165,6 +166,30 @@ const Messages = () => {
 
   const loadFriends = async () => {
     if (!user) return;
+    
+    // Load pending requests where user is the receiver
+    const { data: pending } = await supabase
+      .from("friend_requests")
+      .select("id, sender_id, created_at")
+      .eq("receiver_id", user.id)
+      .eq("status", "pending");
+    
+    if (pending && pending.length > 0) {
+      const senderIds = pending.map(p => p.sender_id);
+      const { data: senderProfiles } = await supabase
+        .from("profiles")
+        .select("id, display_name, avatar_url, gender")
+        .in("id", senderIds);
+      
+      setPendingRequests((senderProfiles || []).map((p, i) => ({
+        ...p,
+        requestId: pending[i].id,
+        created_at: pending[i].created_at,
+      })));
+    } else {
+      setPendingRequests([]);
+    }
+
     // Get accepted friend requests
     const { data: requests } = await supabase
       .from("friend_requests")
@@ -329,6 +354,25 @@ const Messages = () => {
     }
   };
 
+  const acceptFriendRequest = async (requestId: string, senderId: string) => {
+    if (!user) return;
+    await supabase.from("friend_requests").update({ status: "accepted" }).eq("id", requestId);
+    await supabase.from("notifications").insert({
+      user_id: senderId,
+      title: "تم قبول طلب الصداقة",
+      message: `${profile?.display_name || "مستخدم"} قبل طلب صداقتك`,
+    });
+    toast({ title: "تم", description: "تم قبول طلب الصداقة" });
+    loadFriends();
+  };
+
+  const rejectFriendRequest = async (requestId: string) => {
+    if (!user) return;
+    await supabase.from("friend_requests").delete().eq("id", requestId);
+    toast({ title: "تم", description: "تم رفض طلب الصداقة" });
+    loadFriends();
+  };
+
   const blockUser = async (blockedId: string) => {
     if (!user) return;
     await supabase.from("user_blocks").insert({ blocker_id: user.id, blocked_id: blockedId });
@@ -426,6 +470,31 @@ const Messages = () => {
 
         {/* Friends List */}
         <div className="flex-1 overflow-y-auto">
+          {/* Pending Requests Section */}
+          {pendingRequests.length > 0 && (
+            <div className="p-3 border-b border-border/30 bg-accent/10">
+              <h3 className="text-sm font-bold text-accent mb-2">طلبات الصداقة ({pendingRequests.length})</h3>
+              <div className="space-y-2">
+                {pendingRequests.map(req => (
+                  <div key={req.requestId} className="flex items-center gap-2 p-2 bg-background/50 rounded-lg">
+                    {req.avatar_url ? (
+                      <img src={req.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
+                    ) : (
+                      <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-bold">
+                        {(req.display_name || "؟")[0]}
+                      </div>
+                    )}
+                    <span className="flex-1 text-xs text-foreground truncate">{req.display_name || "مستخدم"}</span>
+                    <button onClick={() => acceptFriendRequest(req.requestId, req.id)}
+                      className="px-2 py-1 bg-green-500/20 text-green-500 rounded text-xs">✓ قبول</button>
+                    <button onClick={() => rejectFriendRequest(req.requestId)}
+                      className="px-2 py-1 bg-red-500/20 text-red-500 rounded text-xs">✗ رفض</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {friends.length === 0 ? (
             <div className="text-center py-20 text-muted-foreground">
               <p className="text-lg mb-2">لا توجد محادثات بعد</p>

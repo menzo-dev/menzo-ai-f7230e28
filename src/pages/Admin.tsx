@@ -91,7 +91,7 @@ const Admin = () => {
     GPT_API_KEY: "",
     GEMINI_API_KEY: "",
   });
-  const [apiKeyStatus, setApiKeyStatus] = useState<Record<string, "idle" | "saving" | "success" | "error">({});
+  const [apiKeyStatus, setApiKeyStatus] = useState<{ [key: string]: "idle" | "saving" | "success" | "error" }>({});
 
   // Load API keys from settings on mount
   useEffect(() => {
