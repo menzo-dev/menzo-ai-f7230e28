@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Bell, CheckCheck, Trash2, Mail } from "lucide-react";
+import { ArrowLeft, Bell, CheckCheck, Trash2, Mail, Volume2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -15,26 +15,55 @@ interface Notification {
   created_at: string;
 }
 
+// Play notification sound
+const playNotificationSound = () => {
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    oscillator.frequency.value = 800;
+    oscillator.type = 'sine';
+    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.2);
+  } catch (e) {
+    console.log("Audio not supported");
+  }
+};
+
 const Notifications = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const prevCountRef = useRef(0);
 
   useEffect(() => {
     loadNotifications();
     const channel = supabase
       .channel("notifications")
-      .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, () => loadNotifications())
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" }, (payload) => {
+        // New notification arrived - play sound and update list
+        if (soundEnabled && payload.new) {
+          playNotificationSound();
+        }
+        loadNotifications();
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [soundEnabled]);
 
   const loadNotifications = async () => {
+    if (!user) return;
     const { data } = await supabase
       .from("notifications")
       .select("*")
+      .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(100);
     if (data) setNotifications(data as Notification[]);
@@ -42,7 +71,7 @@ const Notifications = () => {
   };
 
   const markAsRead = async (id: string) => {
-    await supabase.from("notifications").update({ is_read: true }).eq("id", id);
+    await supabase.from("notifications").update({ is_read: true }).eq("id", id).eq("user_id", user?.id);
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, is_read: true } : n));
   };
 
@@ -50,17 +79,15 @@ const Notifications = () => {
     const unread = notifications.filter(n => !n.is_read);
     if (unread.length === 0) return;
     for (const n of unread) {
-      await supabase.from("notifications").update({ is_read: true }).eq("id", n.id);
+      await supabase.from("notifications").update({ is_read: true }).eq("id", n.id).eq("user_id", user?.id);
     }
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
   };
 
   const deleteAllNotifications = async () => {
+    if (!user) return;
     if (!confirm("هل تريد حذف جميع الإشعارات؟")) return;
-    // Delete user's notifications (where user_id matches or is null for broadcasts)
-    if (user) {
-      await supabase.from("notifications").delete().eq("user_id", user.id);
-    }
+    await supabase.from("notifications").delete().eq("user_id", user.id);
     setNotifications([]);
     toast({ title: "تم", description: "تم حذف جميع الإشعارات" });
   };

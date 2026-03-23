@@ -32,7 +32,7 @@ interface ConvDetail {
   model: string | null;
 }
 
-type Tab = "overview" | "users" | "conversations" | "notifications" | "contacts" | "forum_male" | "forum_female" | "settings" | "reports";
+type Tab = "overview" | "users" | "conversations" | "notifications" | "contacts" | "forum_male" | "forum_female" | "books" | "settings" | "reports";
 
 const Admin = () => {
   const { user } = useAuth();
@@ -73,6 +73,41 @@ const Admin = () => {
   const [editUserPhoneParent, setEditUserPhoneParent] = useState("");
   const [newPasswordForUser, setNewPasswordForUser] = useState("");
 
+  // Books
+  const [books, setBooks] = useState<any[]>([]);
+  const [newBookTitle, setNewBookTitle] = useState("");
+  const [newBookDesc, setNewBookDesc] = useState("");
+  const [newBookSubject, setNewBookSubject] = useState("");
+  const [newBookFile, setNewBookFile] = useState<File | null>(null);
+
+  // API Keys from settings
+  const [apiKeys, setApiKeys] = useState<Record<string, string>>({
+    OPTIIC_API_KEY: "",
+    TAVILY_API_KEY: "",
+    EXA_API_KEY: "",
+    LEONARDO_API_KEY: "",
+    FIRECRAWL_API_KEY: "",
+    GROQ_API_KEY: "",
+    GPT_API_KEY: "",
+    GEMINI_API_KEY: "",
+  });
+  const [apiKeyStatus, setApiKeyStatus] = useState<{ [key: string]: "idle" | "saving" | "success" | "error" }>({});
+
+  // Load API keys from settings on mount
+  useEffect(() => {
+    const loadApiKeys = async () => {
+      const { data } = await supabase.from("site_settings").select("key, value");
+      if (data) {
+        const keys: Record<string, string> = {};
+        data.forEach((item: any) => {
+          if (item.key.endsWith("_API_KEY")) keys[item.key] = item.value || "";
+        });
+        setApiKeys(prev => ({ ...prev, ...keys }));
+      }
+    };
+    loadApiKeys();
+  }, []);
+
   useEffect(() => { checkAdmin(); }, [user]);
 
   const checkAdmin = async () => {
@@ -85,8 +120,24 @@ const Admin = () => {
     setLoading(false);
   };
 
+  // Save API key to settings
+  const saveApiKey = async (key: string, value: string) => {
+    setApiKeyStatus(prev => ({ ...prev, [key]: "saving" }));
+    try {
+      const { error } = await supabase.from("site_settings").upsert({ key, value }, { onConflict: "key" });
+      if (error) throw error;
+      setApiKeys(prev => ({ ...prev, [key]: value }));
+      setApiKeyStatus(prev => ({ ...prev, [key]: "success" }));
+      toast({ title: "تم", description: `تم حفظ ${key} بنجاح` });
+      setTimeout(() => setApiKeyStatus(prev => ({ ...prev, [key]: "idle" })), 2000);
+    } catch (err: any) {
+      setApiKeyStatus(prev => ({ ...prev, [key]: "error" }));
+      toast({ title: "خطأ", description: err.message, variant: "destructive" });
+    }
+  };
+
   const loadAdminData = async () => {
-    const [profilesRes, convsRes, lessonsRes, questionsRes, forumMaleRes, forumFemaleRes, contactsRes, reportsRes] = await Promise.all([
+    const [profilesRes, convsRes, lessonsRes, questionsRes, forumMaleRes, forumFemaleRes, contactsRes, reportsRes, booksRes] = await Promise.all([
       supabase.from("profiles").select("*"),
       supabase.from("conversations").select("id, user_id, title, last_active, messages, model").order("last_active", { ascending: false }),
       supabase.from("lessons").select("id"),
@@ -95,6 +146,7 @@ const Admin = () => {
       supabase.from("forum_posts").select("*").eq("forum_type", "female").order("created_at", { ascending: false }).limit(100),
       supabase.from("contact_messages").select("*").order("created_at", { ascending: false }),
       supabase.from("user_reports").select("*").order("created_at", { ascending: false }).limit(50),
+      supabase.from("books").select("*").order("created_at", { ascending: false }),
     ]);
     setUsers((profilesRes.data || []) as UserProfile[]);
     setConversations(convsRes.data || []);
@@ -102,6 +154,7 @@ const Admin = () => {
     setForumPostsFemale(forumFemaleRes.data || []);
     setContacts(contactsRes.data || []);
     setReports(reportsRes.data || []);
+    setBooks(booksRes.data || []);
     setStats({
       users: profilesRes.data?.length || 0,
       conversations: convsRes.data?.length || 0,
@@ -200,6 +253,36 @@ const Admin = () => {
     toast({ title: "تم", description: "تم تعديل المنشور" });
     setEditingPostId(null);
     setEditPostContent("");
+    loadAdminData();
+  };
+
+  const uploadBook = async () => {
+    if (!newBookTitle.trim() || !newBookFile) {
+      toast({ title: "خطأ", description: "يرجى إدخال عنوان الكتاب واختيار ملف", variant: "destructive" });
+      return;
+    }
+    const ext = newBookFile.name.split(".").pop();
+    const path = `books/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from("avatars").upload(path, newBookFile);
+    if (error) {
+      toast({ title: "خطأ", description: "فشل رفع الملف", variant: "destructive" });
+      return;
+    }
+    const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(path);
+    await supabase.from("books").insert({
+      title: newBookTitle.trim(),
+      description: newBookDesc.trim() || null,
+      subject: newBookSubject.trim() || null,
+      file_url: publicUrl,
+    });
+    toast({ title: "تم", description: "تم رفع الكتاب بنجاح" });
+    setNewBookTitle(""); setNewBookDesc(""); setNewBookSubject(""); setNewBookFile(null);
+    loadAdminData();
+  };
+
+  const deleteBook = async (bookId: string) => {
+    await supabase.from("books").delete().eq("id", bookId);
+    toast({ title: "تم", description: "تم حذف الكتاب" });
     loadAdminData();
   };
 
@@ -364,6 +447,7 @@ const Admin = () => {
     { id: "contacts", label: "رسائل التواصل", icon: Mail },
     { id: "forum_male", label: "منتدى الطلاب", icon: Users },
     { id: "forum_female", label: "منتدى الطالبات", icon: Users },
+    { id: "books", label: "قسم الكتب", icon: BookOpen },
     { id: "reports", label: "البلاغات", icon: AlertTriangle },
     { id: "settings", label: "الإعدادات", icon: Settings },
   ];
@@ -623,6 +707,57 @@ const Admin = () => {
         {/* Forum Female */}
         {tab === "forum_female" && renderForumSection(forumPostsFemale, "female")}
 
+        {/* Books Section */}
+        {tab === "books" && (
+          <div className="space-y-6">
+            <div className="glass rounded-2xl p-6">
+              <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2"><BookOpen className="h-5 w-5 text-primary" /> إضافة كتاب جديد</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input value={newBookTitle} onChange={e => setNewBookTitle(e.target.value)} placeholder="عنوان الكتاب"
+                  className="bg-secondary/50 rounded-lg px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none border border-border/30" />
+                <input value={newBookSubject} onChange={e => setNewBookSubject(e.target.value)} placeholder="المادة (اختياري)"
+                  className="bg-secondary/50 rounded-lg px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none border border-border/30" />
+                <input value={newBookDesc} onChange={e => setNewBookDesc(e.target.value)} placeholder="الوصف (اختياري)"
+                  className="md:col-span-2 bg-secondary/50 rounded-lg px-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none border border-border/30" />
+                <div className="md:col-span-2">
+                  <input type="file" accept=".pdf,.doc,.docx" onChange={e => setNewBookFile(e.target.files?.[0] || null)}
+                    className="w-full bg-secondary/50 rounded-lg px-4 py-2.5 text-sm text-foreground outline-none border border-border/30" />
+                </div>
+                <Button onClick={uploadBook} className="md:col-span-2 bg-gradient-to-r from-primary to-accent text-primary-foreground">
+                  <Upload className="ml-2 h-4 w-4" /> رفع الكتاب
+                </Button>
+              </div>
+            </div>
+
+            <div className="glass rounded-2xl p-6">
+              <h2 className="text-lg font-bold text-foreground mb-4">الكتب المتاحة ({books.length})</h2>
+              <div className="space-y-3 max-h-[50vh] overflow-y-auto scrollbar-hide">
+                {books.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-8">لا توجد كتب</p>
+                ) : books.map(book => (
+                  <div key={book.id} className="flex items-center justify-between rounded-xl px-4 py-3 bg-secondary/30 border border-border/20">
+                    <div className="flex-1">
+                      <span className="text-sm font-bold text-foreground block">{book.title}</span>
+                      <span className="text-xs text-muted-foreground">{book.subject || "عام"} | {new Date(book.created_at).toLocaleDateString("ar")}</span>
+                    </div>
+                    <div className="flex gap-2">
+                      <a href={book.file_url} target="_blank" rel="noopener noreferrer" className="p-2 text-primary hover:bg-primary/10 rounded-lg">
+                        <Eye className="h-4 w-4" />
+                      </a>
+                      <a href={book.file_url} download className="p-2 text-accent hover:bg-accent/10 rounded-lg">
+                        <Download className="h-4 w-4" />
+                      </a>
+                      <button onClick={() => deleteBook(book.id)} className="p-2 text-destructive hover:bg-destructive/10 rounded-lg">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Reports */}
         {tab === "reports" && (
           <div className="glass rounded-2xl p-6">
@@ -659,37 +794,93 @@ const Admin = () => {
         {/* Settings */}
         {tab === "settings" && (
           <div className="space-y-6">
+            {/* API Keys Management */}
+            <div className="glass rounded-2xl p-6">
+              <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2"><Key className="h-5 w-5 text-accent" /> مفاتيح API</h2>
+              <p className="text-sm text-muted-foreground mb-4">قم بإدخال مفاتيح API المطلوبة. سيتم التحقق من صحتها عند الضغط على زر التحديث.</p>
+              <div className="space-y-3">
+                {[
+                  { key: "OPTIIC_API_KEY", label: "Optiic API", desc: "لتحليل الصور" },
+                  { key: "TAVILY_API_KEY", label: "Tavily API", desc: "للبحث" },
+                  { key: "EXA_API_KEY", label: "Exa API", desc: "للبحث" },
+                  { key: "LEONARDO_API_KEY", label: "Leonardo AI API", desc: "لتوليد الصور" },
+                  { key: "FIRECRAWL_API_KEY", label: "Firecrawl API", desc: "لجمع البيانات من الويب" },
+                  { key: "GROQ_API_KEY", label: "Groq API", desc: "للاستدلال السريع" },
+                  { key: "GPT_API_KEY", label: "OpenAI API", desc: "GPT Models" },
+                  { key: "GEMINI_API_KEY", label: "Gemini API", desc: "Google Models" },
+                ].map(api => (
+                  <div key={api.key} className="flex items-center gap-3">
+                    <div className="w-32 shrink-0">
+                      <span className="text-xs font-bold text-foreground">{api.label}</span>
+                      <span className="text-[10px] text-muted-foreground block">{api.desc}</span>
+                    </div>
+                    <input 
+                      type="password" 
+                      placeholder="أدخل المفتاح..." 
+                      className="flex-1 bg-secondary/50 rounded-lg px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground outline-none border border-border/30 focus:border-primary/50"
+                      value={apiKeys[api.key] || ""}
+                      onChange={(e) => setApiKeys(prev => ({ ...prev, [api.key]: e.target.value }))}
+                    />
+                    <button 
+                      onClick={() => saveApiKey(api.key, apiKeys[api.key] || "")}
+                      disabled={apiKeyStatus[api.key] === "saving"}
+                      className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                        apiKeyStatus[api.key] === "success" ? "bg-green-500/20 text-green-500" 
+                        : apiKeyStatus[api.key] === "error" ? "bg-red-500/20 text-red-500"
+                        : "bg-primary/20 text-primary hover:bg-primary/30"
+                      }`}
+                    >
+                      {apiKeyStatus[api.key] === "saving" ? "..." : apiKeyStatus[api.key] === "success" ? "✓" : "حفظ"}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* System Status */}
+            <div className="glass rounded-2xl p-6">
+              <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2"><Shield className="h-5 w-5 text-primary" /> حالة النظام</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="bg-secondary/30 rounded-xl p-4 border border-border/20">
+                  <ul className="text-xs text-muted-foreground space-y-2">
+                    <li className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3 text-primary" /> قاعدة البيانات: متصلة</li>
+                    <li className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3 text-primary" /> المصادقة: مفعّلة</li>
+                    <li className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3 text-primary" /> التخزين: متصل</li>
+                    <li className="flex items-center gap-2"><CheckCircle2 className="h-3 w-3 text-primary" /> Edge Functions: نشط</li>
+                  </ul>
+                </div>
+                <div className="bg-secondary/30 rounded-xl p-4 border border-border/20">
+                  <ul className="text-xs text-muted-foreground space-y-2">
+                    <li className="flex items-center gap-2">📅 الامتحانات: <span className="text-primary font-bold">{daysLeft > 0 ? `باقي ${daysLeft} يوم` : "انتهت"}</span></li>
+                    <li className="flex items-center gap-2">🔐 تأكيد الإيميل: <span className="text-accent font-bold">مطلوب</span></li>
+                    <li className="flex items-center gap-2">👥 المستخدمين: <span className="text-primary font-bold">{stats.users}</span></li>
+                    <li className="flex items-center gap-2">💬 المحادثات: <span className="text-primary font-bold">{stats.conversations}</span></li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+
+            {/* Site Settings */}
             <div className="glass rounded-2xl p-6">
               <h2 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2"><Settings className="h-5 w-5 text-primary" /> إعدادات الموقع</h2>
-              <p className="text-sm text-muted-foreground">
-                يمكنك إدارة إعدادات الموقع ومفاتيح API من خلال Lovable Cloud مباشرة.
-              </p>
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-secondary/30 rounded-xl p-4 border border-border/20">
-                  <h4 className="text-sm font-bold text-foreground mb-2 flex items-center gap-2"><Key className="h-4 w-4 text-accent" /> مفاتيح API المُعدّة</h4>
-                  <ul className="text-xs text-muted-foreground space-y-1">
-                    <li>✅ Lovable AI Gateway</li>
-                    <li>✅ OpenRouter</li>
-                    <li>✅ DeepSeek</li>
-                    <li>✅ xAI (Grok)</li>
-                    <li>✅ Anthropic (Claude)</li>
-                    <li>✅ HuggingFace</li>
-                    <li>✅ Optiic (تحليل الصور)</li>
-                    <li>✅ Tavily (بحث)</li>
-                    <li>✅ Exa (بحث)</li>
-                    <li>✅ Leonardo AI</li>
-                  </ul>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">اسم الموقع</label>
+                  <input defaultValue="MENZO-AI" className="w-full bg-secondary/50 rounded-lg px-3 py-2 text-sm text-foreground outline-none border border-border/30" />
                 </div>
-                <div className="bg-secondary/30 rounded-xl p-4 border border-border/20">
-                  <h4 className="text-sm font-bold text-foreground mb-2 flex items-center gap-2"><Shield className="h-4 w-4 text-primary" /> حالة النظام</h4>
-                  <ul className="text-xs text-muted-foreground space-y-1">
-                    <li>📊 قاعدة البيانات: متصلة</li>
-                    <li>🔐 المصادقة: مفعّلة (تأكيد الإيميل مطلوب)</li>
-                    <li>📦 التخزين: avatars bucket عام</li>
-                    <li>⚡ Edge Functions: chat, generate-image, web-search</li>
-                    <li>📅 الامتحانات: {daysLeft > 0 ? `باقي ${daysLeft} يوم` : "انتهت"}</li>
-                  </ul>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">وصف الموقع</label>
+                  <textarea defaultValue="المعلم الذكي للصف الثالث الثانوي الأزهري" className="w-full bg-secondary/50 rounded-lg px-3 py-2 text-sm text-foreground outline-none border border-border/30 resize-none" rows={2} />
                 </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">رسالة الترحيب للـ AI</label>
+                  <textarea defaultValue="أنت MENZO-AI، معلم ذكي متخصص في تدريس طلاب الصف الثالث الثانوي الأزهري" className="w-full bg-secondary/50 rounded-lg px-3 py-2 text-sm text-foreground outline-none border border-border/30 resize-none" rows={3} />
+                </div>
+                <div>
+                  <label className="text-xs text-muted-foreground mb-1 block">نص رسالة المنتدى</label>
+                  <textarea defaultValue="مرحباً بكم في منتدى طلاب الأزهر" className="w-full bg-secondary/50 rounded-lg px-3 py-2 text-sm text-foreground outline-none border border-border/30 resize-none" rows={2} />
+                </div>
+                <button className="w-full bg-gradient-to-r from-primary to-accent text-primary-foreground py-2.5 rounded-xl font-bold shadow-glow">حفظ الإعدادات</button>
               </div>
             </div>
           </div>

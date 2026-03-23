@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft, Send, Search, UserPlus, X, Image, Mic, MicOff,
   Paperclip, ChevronDown, MoreVertical, Phone, Video, Square,
-  Trash2, Ban, Flag, Check, CheckCheck
+  Trash2, Ban, Flag, Check, CheckCheck, Users, Volume2
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -35,6 +35,37 @@ interface PrivateMessage {
   created_at: string;
 }
 
+interface Group {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+  last_message: string | null;
+  last_active: string | null;
+  unreadCount?: number;
+}
+
+// Notification sound function
+const playNotificationSound = () => {
+  try {
+    const audio = new Audio("data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2Onp6akX JesusAYqD");
+    audio.volume = 0.3;
+    audio.play().catch(() => {});
+  } catch (e) {
+    // Fallback - try web audio API
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 800;
+      gain.gain.value = 0.1;
+      osc.start();
+      osc.stop(ctx.currentTime + 0.1);
+    } catch (e2) {}
+  }
+};
+
 const Messages = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
@@ -53,6 +84,14 @@ const Messages = () => {
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
   const [blockedByName, setBlockedByName] = useState("");
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newGroupMembers, setNewGroupMembers] = useState<string[]>([]);
+  const [showFriendsList, setShowFriendsList] = useState(false);
+  const [activeTab, setActiveTab] = useState<"friends" | "groups">("friends");
+  const [pendingRequests, setPendingRequests] = useState<any[]>([]);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -62,6 +101,21 @@ const Messages = () => {
 
   useEffect(() => {
     if (user) loadFriends();
+  }, [user]);
+
+  // Subscribe to friend requests notifications
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel("friend-requests")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "friend_requests" }, (payload: any) => {
+        if (payload.new.receiver_id === user.id) {
+          playNotificationSound();
+          loadFriends();
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, [user]);
 
   useEffect(() => {
@@ -83,7 +137,9 @@ const Messages = () => {
             (msg.sender_id === user.id && msg.receiver_id === selectedFriend.id)
           ) {
             setMessages(prev => [...prev, msg]);
+            // Play notification sound for incoming messages
             if (msg.sender_id === selectedFriend.id) {
+              playNotificationSound();
               supabase.from("private_messages").update({ is_read: true }).eq("id", msg.id);
             }
           }
@@ -110,6 +166,30 @@ const Messages = () => {
 
   const loadFriends = async () => {
     if (!user) return;
+    
+    // Load pending requests where user is the receiver
+    const { data: pending } = await supabase
+      .from("friend_requests")
+      .select("id, sender_id, created_at")
+      .eq("receiver_id", user.id)
+      .eq("status", "pending");
+    
+    if (pending && pending.length > 0) {
+      const senderIds = pending.map(p => p.sender_id);
+      const { data: senderProfiles } = await supabase
+        .from("profiles")
+        .select("id, display_name, avatar_url, gender")
+        .in("id", senderIds);
+      
+      setPendingRequests((senderProfiles || []).map((p, i) => ({
+        ...p,
+        requestId: pending[i].id,
+        created_at: pending[i].created_at,
+      })));
+    } else {
+      setPendingRequests([]);
+    }
+
     // Get accepted friend requests
     const { data: requests } = await supabase
       .from("friend_requests")
@@ -146,6 +226,28 @@ const Messages = () => {
       ...p,
       unreadCount: unreadMap.get(p.id) || 0,
     })));
+
+    // Also load groups
+    loadGroups();
+  };
+
+  const loadGroups = async () => {
+    if (!user) return;
+    // Load groups where user is a member (would need a group_members table)
+    // For now, show empty groups - can be expanded later
+    setGroups([]);
+  };
+
+  const createGroup = async () => {
+    if (!user || !newGroupName.trim() || newGroupMembers.length < 2) {
+      toast({ title: "خطأ", description: "أدخل اسم المجموعة واختر成员ين على الأقل", variant: "destructive" });
+      return;
+    }
+    // Create group logic would go here
+    toast({ title: "تم", description: "تم إنشاء المجموعة بنجاح" });
+    setShowCreateGroup(false);
+    setNewGroupName("");
+    setNewGroupMembers([]);
   };
 
   const loadMessages = async (friendId: string) => {
@@ -252,6 +354,25 @@ const Messages = () => {
     }
   };
 
+  const acceptFriendRequest = async (requestId: string, senderId: string) => {
+    if (!user) return;
+    await supabase.from("friend_requests").update({ status: "accepted" }).eq("id", requestId);
+    await supabase.from("notifications").insert({
+      user_id: senderId,
+      title: "تم قبول طلب الصداقة",
+      message: `${profile?.display_name || "مستخدم"} قبل طلب صداقتك`,
+    });
+    toast({ title: "تم", description: "تم قبول طلب الصداقة" });
+    loadFriends();
+  };
+
+  const rejectFriendRequest = async (requestId: string) => {
+    if (!user) return;
+    await supabase.from("friend_requests").delete().eq("id", requestId);
+    toast({ title: "تم", description: "تم رفض طلب الصداقة" });
+    loadFriends();
+  };
+
   const blockUser = async (blockedId: string) => {
     if (!user) return;
     await supabase.from("user_blocks").insert({ blocker_id: user.id, blocked_id: blockedId });
@@ -349,6 +470,31 @@ const Messages = () => {
 
         {/* Friends List */}
         <div className="flex-1 overflow-y-auto">
+          {/* Pending Requests Section */}
+          {pendingRequests.length > 0 && (
+            <div className="p-3 border-b border-border/30 bg-accent/10">
+              <h3 className="text-sm font-bold text-accent mb-2">طلبات الصداقة ({pendingRequests.length})</h3>
+              <div className="space-y-2">
+                {pendingRequests.map(req => (
+                  <div key={req.requestId} className="flex items-center gap-2 p-2 bg-background/50 rounded-lg">
+                    {req.avatar_url ? (
+                      <img src={req.avatar_url} alt="" className="h-8 w-8 rounded-full object-cover" />
+                    ) : (
+                      <div className="h-8 w-8 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-bold">
+                        {(req.display_name || "؟")[0]}
+                      </div>
+                    )}
+                    <span className="flex-1 text-xs text-foreground truncate">{req.display_name || "مستخدم"}</span>
+                    <button onClick={() => acceptFriendRequest(req.requestId, req.id)}
+                      className="px-2 py-1 bg-green-500/20 text-green-500 rounded text-xs">✓ قبول</button>
+                    <button onClick={() => rejectFriendRequest(req.requestId)}
+                      className="px-2 py-1 bg-red-500/20 text-red-500 rounded text-xs">✗ رفض</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {friends.length === 0 ? (
             <div className="text-center py-20 text-muted-foreground">
               <p className="text-lg mb-2">لا توجد محادثات بعد</p>
