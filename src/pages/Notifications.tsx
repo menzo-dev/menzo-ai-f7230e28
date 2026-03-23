@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { ArrowLeft, Bell, CheckCheck, Trash2, Mail } from "lucide-react";
+import { ArrowLeft, Bell, CheckCheck, Trash2, Mail, Volume2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
@@ -15,21 +15,48 @@ interface Notification {
   created_at: string;
 }
 
+// Play notification sound
+const playNotificationSound = () => {
+  try {
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    oscillator.frequency.value = 800;
+    oscillator.type = 'sine';
+    gainNode.gain.setValueAtTime(0.1, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+    oscillator.start(audioContext.currentTime);
+    oscillator.stop(audioContext.currentTime + 0.2);
+  } catch (e) {
+    console.log("Audio not supported");
+  }
+};
+
 const Notifications = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const prevCountRef = useRef(0);
 
   useEffect(() => {
     loadNotifications();
     const channel = supabase
       .channel("notifications")
-      .on("postgres_changes", { event: "*", schema: "public", table: "notifications" }, () => loadNotifications())
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notifications" }, (payload) => {
+        // New notification arrived - play sound and update list
+        if (soundEnabled && payload.new) {
+          playNotificationSound();
+        }
+        loadNotifications();
+      })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [soundEnabled]);
 
   const loadNotifications = async () => {
     const { data } = await supabase

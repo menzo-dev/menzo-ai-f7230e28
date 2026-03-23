@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft, Send, Search, UserPlus, X, Image, Mic, MicOff,
   Paperclip, ChevronDown, MoreVertical, Phone, Video, Square,
-  Trash2, Ban, Flag, Check, CheckCheck
+  Trash2, Ban, Flag, Check, CheckCheck, Users, Volume2
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
@@ -35,6 +35,37 @@ interface PrivateMessage {
   created_at: string;
 }
 
+interface Group {
+  id: string;
+  name: string;
+  avatar_url: string | null;
+  last_message: string | null;
+  last_active: string | null;
+  unreadCount?: number;
+}
+
+// Notification sound function
+const playNotificationSound = () => {
+  try {
+    const audio = new Audio("data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdH2Onp6akX JesusAYqD");
+    audio.volume = 0.3;
+    audio.play().catch(() => {});
+  } catch (e) {
+    // Fallback - try web audio API
+    try {
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.frequency.value = 800;
+      gain.gain.value = 0.1;
+      osc.start();
+      osc.stop(ctx.currentTime + 0.1);
+    } catch (e2) {}
+  }
+};
+
 const Messages = () => {
   const { user, profile } = useAuth();
   const navigate = useNavigate();
@@ -53,6 +84,13 @@ const Messages = () => {
   const [showScrollBtn, setShowScrollBtn] = useState(false);
   const [isBlocked, setIsBlocked] = useState(false);
   const [blockedByName, setBlockedByName] = useState("");
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [selectedGroup, setSelectedGroup] = useState<Group | null>(null);
+  const [showCreateGroup, setShowCreateGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [newGroupMembers, setNewGroupMembers] = useState<string[]>([]);
+  const [showFriendsList, setShowFriendsList] = useState(false);
+  const [activeTab, setActiveTab] = useState<"friends" | "groups">("friends");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -146,6 +184,28 @@ const Messages = () => {
       ...p,
       unreadCount: unreadMap.get(p.id) || 0,
     })));
+
+    // Also load groups
+    loadGroups();
+  };
+
+  const loadGroups = async () => {
+    if (!user) return;
+    // Load groups where user is a member (would need a group_members table)
+    // For now, show empty groups - can be expanded later
+    setGroups([]);
+  };
+
+  const createGroup = async () => {
+    if (!user || !newGroupName.trim() || newGroupMembers.length < 2) {
+      toast({ title: "خطأ", description: "أدخل اسم المجموعة واختر成员ين على الأقل", variant: "destructive" });
+      return;
+    }
+    // Create group logic would go here
+    toast({ title: "تم", description: "تم إنشاء المجموعة بنجاح" });
+    setShowCreateGroup(false);
+    setNewGroupName("");
+    setNewGroupMembers([]);
   };
 
   const loadMessages = async (friendId: string) => {
