@@ -96,7 +96,7 @@ const Admin = () => {
   // Load API keys from settings on mount
   useEffect(() => {
     const loadApiKeys = async () => {
-      const { data } = await supabase.from("settings").select("key, value");
+      const { data } = await supabase.from("site_settings").select("key, value");
       if (data) {
         const keys: Record<string, string> = {};
         data.forEach((item: any) => {
@@ -124,7 +124,7 @@ const Admin = () => {
   const saveApiKey = async (key: string, value: string) => {
     setApiKeyStatus(prev => ({ ...prev, [key]: "saving" }));
     try {
-      const { error } = await supabase.from("settings").upsert({ key, value }, { onConflict: "key" });
+      const { error } = await supabase.from("site_settings").upsert({ key, value }, { onConflict: "key" });
       if (error) throw error;
       setApiKeys(prev => ({ ...prev, [key]: value }));
       setApiKeyStatus(prev => ({ ...prev, [key]: "success" }));
