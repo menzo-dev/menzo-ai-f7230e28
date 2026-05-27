@@ -226,9 +226,16 @@ const Admin = () => {
     loadAdminData();
   };
 
-  const filteredUsers = users.filter(u =>
-    (u.display_name || "").toLowerCase().includes(searchTerm.toLowerCase()) || u.id.includes(searchTerm) || (u.phone || "").includes(searchTerm)
-  );
+  const filteredUsers = users
+    .filter(u =>
+      (u.display_name || "").toLowerCase().includes(searchTerm.toLowerCase()) || u.id.includes(searchTerm) || (u.phone || "").includes(searchTerm)
+    )
+    .sort((a, b) => {
+      if (sortBy === "name_asc") return (a.display_name || "").localeCompare(b.display_name || "", "ar");
+      if (sortBy === "name_desc") return (b.display_name || "").localeCompare(a.display_name || "", "ar");
+      if (sortBy === "oldest") return new Date((a as any).created_at || 0).getTime() - new Date((b as any).created_at || 0).getTime();
+      return new Date((b as any).created_at || 0).getTime() - new Date((a as any).created_at || 0).getTime();
+    });
 
   // Exam countdown
   const examDate = new Date("2026-06-06T00:00:00");
