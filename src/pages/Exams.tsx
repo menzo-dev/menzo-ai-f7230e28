@@ -143,17 +143,16 @@ const Exams = () => {
         body: JSON.stringify({
           messages: [{
             role: "user",
-            content: `أنشئ ${count} أسئلة اختيار من متعدد في مادة "${subjectLabel}" للصف الثالث الثانوي الأزهري. مستوى الصعوبة: ${diffLabel}.${descriptionPart}
+            content: `أنشئ بالضبط ${count} سؤال اختيار من متعدد في مادة "${subjectLabel}" للصف الثالث الثانوي الأزهري (المذهب الشافعي). الصعوبة: ${diffLabel}.${descriptionPart}
 
-أعد النتيجة كـ JSON array فقط بدون أي نص إضافي أو markdown أو code blocks أو أي حروف تحكم. كل سؤال يحتوي على:
-- "q_text": نص السؤال (نص عادي بدون أي رموز تحكم)
-- "choices": مصفوفة من 4 اختيارات مختلفة
-- "answer": الإجابة الصحيحة (نفس نص الاختيار بالضبط)
-- "difficulty": ${difficulty || "رقم من 1-3"}
+⚠️ تعليمات صارمة:
+- أعد JSON array صالحاً 100% فقط. لا تكتب أي شرح قبله أو بعده.
+- لا markdown ولا \`\`\`code blocks\`\`\`.
+- داخل النصوص: لا علامات تنصيص " بدون \\. لا أسطر جديدة. نص عادي فقط.
+- كل عنصر: q_text (نص السؤال), choices (4 خيارات نصية مختلفة), answer (يطابق أحد choices حرفياً), difficulty (رقم 1-3).
 
-مثال: [{"q_text":"ما حكم صلاة الجمعة؟","choices":["فرض عين","فرض كفاية","سنة مؤكدة","مستحب"],"answer":"فرض عين","difficulty":1}]
-
-أعد JSON array فقط، بدون أي نص قبله أو بعده. لا تضع أي control characters أو line breaks داخل النصوص.`
+ابدأ بـ [ وانتهِ بـ ]. مثال:
+[{"q_text":"ما حكم الصلاة؟","choices":["فرض","سنة","مستحب","مباح"],"answer":"فرض","difficulty":1}]`
           }],
           model: selectedModel,
         }),
@@ -175,43 +174,54 @@ const Exams = () => {
         }
       }
 
-      // Robust JSON extraction and parsing
+      // ====== Bulletproof JSON extraction ======
+      const tryParse = (raw: string): Question[] | null => {
+        try { const p = JSON.parse(raw); if (Array.isArray(p)) return p as Question[]; } catch {}
+        return null;
+      };
+
       let cleanText = fullText
-        .replace(/```json\s*/gi, "")
-        .replace(/```\s*/g, "")
-        .replace(/^[^[]*(\[)/s, "$1")
+        .replace(/```(?:json)?/gi, "")
+        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "")
         .trim();
-      // Remove control characters except newlines/tabs
-      cleanText = cleanText.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
-      const jsonMatch = cleanText.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) throw new Error("لم يتم إنشاء أسئلة صالحة. حاول مرة أخرى.");
-      let parsedQuestions: Question[];
-      const rawJson = jsonMatch[0];
-      try {
-        parsedQuestions = JSON.parse(rawJson);
-      } catch {
-        // Aggressive cleanup for common AI JSON issues
-        let fixed = rawJson
-          .replace(/,\s*([}\]])/g, "$1")   // trailing commas
-          .replace(/[\x00-\x1F\x7F]/g, " ") // all control chars to space
-          .replace(/\n/g, " ")
-          .replace(/\r/g, "")
-          .replace(/\t/g, " ")
-          .replace(/"\s*:\s*"([^"]*?)(?<!\\)"\s*([^",}\]])/g, '":"$1" $2') // fix unescaped quotes in values
-          .replace(/,\s*,/g, ",");          // double commas
-        try {
-          parsedQuestions = JSON.parse(fixed);
-        } catch {
-          // Last resort: extract individual objects
-          const objMatches = [...fixed.matchAll(/\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}/g)];
-          const extracted = objMatches.map(m => {
-            try { return JSON.parse(m[0]); } catch { return null; }
-          }).filter(Boolean);
-          if (extracted.length === 0) throw new Error("لم يتم إنشاء أسئلة صالحة. حاول مرة أخرى مع نموذج مختلف.");
-          parsedQuestions = extracted as Question[];
-        }
+
+      const startIdx = cleanText.indexOf("[");
+      const endIdx = cleanText.lastIndexOf("]");
+      if (startIdx === -1 || endIdx === -1 || endIdx < startIdx) {
+        throw new Error("لم يرد الذكاء الاصطناعي بأسئلة صالحة. جرب نموذجاً آخر.");
       }
-      const validQuestions = parsedQuestions.filter(q => q.q_text && Array.isArray(q.choices) && q.choices.length >= 2 && q.answer);
+      const jsonStr = cleanText.slice(startIdx, endIdx + 1);
+
+      let parsedQuestions: Question[] | null = tryParse(jsonStr);
+
+      if (!parsedQuestions) {
+        const fixed = jsonStr
+          .replace(/,\s*([}\]])/g, "$1")
+          .replace(/[\r\n\t]+/g, " ")
+          .replace(/\s+/g, " ")
+          .replace(/,\s*,/g, ",");
+        parsedQuestions = tryParse(fixed);
+      }
+
+      if (!parsedQuestions) {
+        const objMatches = [...jsonStr.matchAll(/\{[^{}]*\}/g)];
+        const extracted: Question[] = [];
+        for (const m of objMatches) {
+          try {
+            const cleaned = m[0].replace(/,\s*\}/g, "}").replace(/[\r\n\t]+/g, " ");
+            const obj = JSON.parse(cleaned);
+            if (obj.q_text && Array.isArray(obj.choices) && obj.answer) extracted.push(obj);
+          } catch {}
+        }
+        if (extracted.length > 0) parsedQuestions = extracted;
+      }
+
+      if (!parsedQuestions || parsedQuestions.length === 0) {
+        throw new Error("الأسئلة المُولّدة غير صالحة. حاول مرة أخرى أو غيّر النموذج.");
+      }
+      const validQuestions = parsedQuestions.filter(q =>
+        q && q.q_text && Array.isArray(q.choices) && q.choices.length >= 2 && q.answer
+      );
       if (validQuestions.length === 0) throw new Error("الأسئلة غير صالحة. حاول مرة أخرى.");
 
       setQuestions(validQuestions.map((q, i) => ({ ...q, id: `ai-${i}`, choices: q.choices.slice(0, 4), difficulty: q.difficulty || 1 })));
