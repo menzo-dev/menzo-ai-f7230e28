@@ -77,6 +77,27 @@ const Admin = () => {
 
   useEffect(() => { checkAdmin(); }, [user]);
 
+  // Real-time presence tracking — admin sees online/offline users
+  useEffect(() => {
+    if (!isAdmin || !user) return;
+    const channel = supabase.channel("online-users", { config: { presence: { key: user.id } } });
+    channel
+      .on("presence", { event: "sync" }, () => {
+        const state = channel.presenceState();
+        const ids = new Set<string>();
+        Object.values(state).forEach((presences: any) => {
+          presences.forEach((p: any) => { if (p.user_id) ids.add(p.user_id); });
+        });
+        setOnlineUsers(ids);
+      })
+      .subscribe(async (status) => {
+        if (status === "SUBSCRIBED") {
+          await channel.track({ user_id: user.id, online_at: new Date().toISOString() });
+        }
+      });
+    return () => { supabase.removeChannel(channel); };
+  }, [isAdmin, user]);
+
   const checkAdmin = async () => {
     if (!user) return;
     const { data } = await supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle();
