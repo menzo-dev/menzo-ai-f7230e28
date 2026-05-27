@@ -44,6 +44,8 @@ const Admin = () => {
   const [conversations, setConversations] = useState<any[]>([]);
   const [stats, setStats] = useState({ users: 0, conversations: 0, lessons: 0, questions: 0, forumPosts: 0, reports: 0 });
   const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState<"name_asc" | "name_desc" | "newest" | "oldest">("newest");
+  const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [userConversations, setUserConversations] = useState<ConvDetail[]>([]);
   const [viewingConv, setViewingConv] = useState<ConvDetail | null>(null);
