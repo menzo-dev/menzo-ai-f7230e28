@@ -532,25 +532,42 @@ const Admin = () => {
         {/* Users */}
         {tab === "users" && (
           <div className="glass rounded-2xl p-6">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="relative flex-1">
+            <div className="flex items-center gap-3 mb-4 flex-wrap">
+              <div className="relative flex-1 min-w-[200px]">
                 <Search className="absolute right-3 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
                   placeholder="بحث بالاسم أو الرقم..." className="pr-9 bg-secondary/50 border-border/30" />
               </div>
-              <span className="text-xs text-muted-foreground whitespace-nowrap">{filteredUsers.length} مستخدم</span>
+              <select value={sortBy} onChange={e => setSortBy(e.target.value as any)}
+                className="bg-secondary/50 border border-border/30 rounded-lg px-3 py-2 text-xs text-foreground outline-none">
+                <option value="newest">الأحدث أولاً</option>
+                <option value="oldest">الأقدم أولاً</option>
+                <option value="name_asc">الاسم (أ-ي)</option>
+                <option value="name_desc">الاسم (ي-أ)</option>
+              </select>
+              <span className="text-xs text-muted-foreground whitespace-nowrap">
+                {filteredUsers.length} مستخدم • <span className="text-primary">{onlineUsers.size} نشط</span>
+              </span>
             </div>
             <div className="space-y-1 max-h-[60vh] overflow-y-auto scrollbar-hide">
               {filteredUsers.map(u => (
                 <button key={u.id} onClick={() => viewUserProfile(u)}
                   className="w-full flex items-center gap-3 rounded-xl px-4 py-3 hover:bg-secondary/50 transition-colors text-right">
-                  {u.avatar_url ? (
-                    <img src={u.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover border border-primary/30" />
-                  ) : (
-                    <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary text-sm font-bold">
-                      {u.display_name?.[0] || "؟"}
-                    </div>
-                  )}
+                  <div className="relative shrink-0">
+                    {u.avatar_url ? (
+                      <img src={u.avatar_url} alt="" className="h-10 w-10 rounded-full object-cover border border-primary/30" />
+                    ) : (
+                      <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center text-primary text-sm font-bold">
+                        {u.display_name?.[0] || "؟"}
+                      </div>
+                    )}
+                    <span
+                      title={onlineUsers.has(u.id) ? "نشط الآن" : "غير متصل"}
+                      className={`absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-card ${
+                        onlineUsers.has(u.id) ? "bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.8)]" : "bg-red-500"
+                      }`}
+                    />
+                  </div>
                   <div className="flex-1 text-right min-w-0">
                     <div className="text-sm font-medium text-foreground flex items-center gap-2">
                       <span className="truncate">{u.display_name || "بدون اسم"}</span>
